@@ -1,0 +1,2498 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`BiometricStatusDisplay Snapshot Tests renders correctly when biometrics are available with FaceID and no keys 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#f8f9fa",
+      "borderRadius": 8,
+      "marginVertical": 8,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#333",
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "marginBottom": 16,
+        "textAlign": "center",
+      }
+    }
+  >
+    Biometric Status
+  </Text>
+  <View
+    style={
+      {
+        "backgroundColor": "#fff",
+        "borderColor": "#e1e5e9",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        ✅
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Availability:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#28a745",
+              },
+            ]
+          }
+        >
+          Available
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        📱
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Type:
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#495057",
+              "fontSize": 16,
+              "fontWeight": "600",
+            }
+          }
+        >
+          Face ID
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        🚫
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Biometric Keys:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#17a2b8",
+              },
+            ]
+          }
+        >
+          No Keys Found
+        </Text>
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#e7f3ff",
+        "borderColor": "#b8daff",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "padding": 12,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#004085",
+          "fontSize": 16,
+          "fontWeight": "600",
+          "marginBottom": 8,
+        }
+      }
+    >
+      Capability Summary
+    </Text>
+    <View
+      style={
+        {
+          "gap": 6,
+        }
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ✅
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Biometric authentication 
+          supported
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ⚠️
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Enrollment required
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          💡
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Tap "Enroll" to create biometric keys
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`BiometricStatusDisplay Snapshot Tests renders correctly when biometrics are available with TouchID and keys exist 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#f8f9fa",
+      "borderRadius": 8,
+      "marginVertical": 8,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#333",
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "marginBottom": 16,
+        "textAlign": "center",
+      }
+    }
+  >
+    Biometric Status
+  </Text>
+  <View
+    style={
+      {
+        "backgroundColor": "#fff",
+        "borderColor": "#e1e5e9",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        ✅
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Availability:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#28a745",
+              },
+            ]
+          }
+        >
+          Available
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        📱
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Type:
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#495057",
+              "fontSize": 16,
+              "fontWeight": "600",
+            }
+          }
+        >
+          Touch ID
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        🔑
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Biometric Keys:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#28a745",
+              },
+            ]
+          }
+        >
+          Keys Exist
+        </Text>
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#e7f3ff",
+        "borderColor": "#b8daff",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "padding": 12,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#004085",
+          "fontSize": 16,
+          "fontWeight": "600",
+          "marginBottom": 8,
+        }
+      }
+    >
+      Capability Summary
+    </Text>
+    <View
+      style={
+        {
+          "gap": 6,
+        }
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ✅
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Biometric authentication 
+          supported
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ✅
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Ready for validation
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`BiometricStatusDisplay Snapshot Tests renders correctly when biometrics are available with generic Biometrics and keys exist 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#f8f9fa",
+      "borderRadius": 8,
+      "marginVertical": 8,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#333",
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "marginBottom": 16,
+        "textAlign": "center",
+      }
+    }
+  >
+    Biometric Status
+  </Text>
+  <View
+    style={
+      {
+        "backgroundColor": "#fff",
+        "borderColor": "#e1e5e9",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        ✅
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Availability:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#28a745",
+              },
+            ]
+          }
+        >
+          Available
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        📱
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Type:
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#495057",
+              "fontSize": 16,
+              "fontWeight": "600",
+            }
+          }
+        >
+          Biometric Authentication
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        🔑
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Biometric Keys:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#28a745",
+              },
+            ]
+          }
+        >
+          Keys Exist
+        </Text>
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#e7f3ff",
+        "borderColor": "#b8daff",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "padding": 12,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#004085",
+          "fontSize": 16,
+          "fontWeight": "600",
+          "marginBottom": 8,
+        }
+      }
+    >
+      Capability Summary
+    </Text>
+    <View
+      style={
+        {
+          "gap": 6,
+        }
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ✅
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Biometric authentication 
+          supported
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ✅
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Ready for validation
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`BiometricStatusDisplay Snapshot Tests renders correctly when biometrics are not available 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#f8f9fa",
+      "borderRadius": 8,
+      "marginVertical": 8,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#333",
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "marginBottom": 16,
+        "textAlign": "center",
+      }
+    }
+  >
+    Biometric Status
+  </Text>
+  <View
+    style={
+      {
+        "backgroundColor": "#fff",
+        "borderColor": "#e1e5e9",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        ⚠️
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Availability:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#ffc107",
+              },
+            ]
+          }
+        >
+          Not Available
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        🚫
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Biometric Keys:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#17a2b8",
+              },
+            ]
+          }
+        >
+          No Keys Found
+        </Text>
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#e7f3ff",
+        "borderColor": "#b8daff",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "padding": 12,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#004085",
+          "fontSize": 16,
+          "fontWeight": "600",
+          "marginBottom": 8,
+        }
+      }
+    >
+      Capability Summary
+    </Text>
+    <View
+      style={
+        {
+          "gap": 6,
+        }
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ❌
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Biometric authentication 
+          not supported
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ⚠️
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Enrollment required
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`BiometricStatusDisplay Snapshot Tests renders correctly with error state 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#f8f9fa",
+      "borderRadius": 8,
+      "marginVertical": 8,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#333",
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "marginBottom": 16,
+        "textAlign": "center",
+      }
+    }
+  >
+    Biometric Status
+  </Text>
+  <View
+    style={
+      {
+        "backgroundColor": "#fff",
+        "borderColor": "#e1e5e9",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        ❌
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Availability:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#ffc107",
+              },
+            ]
+          }
+        >
+          Not Available
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        🚫
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Biometric Keys:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#17a2b8",
+              },
+            ]
+          }
+        >
+          No Keys Found
+        </Text>
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#f8d7da",
+        "borderColor": "#f5c6cb",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 8,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 18,
+            "marginRight": 8,
+          }
+        }
+      >
+        ⚠️
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#721c24",
+            "fontSize": 16,
+            "fontWeight": "600",
+          }
+        }
+      >
+        Error Details
+      </Text>
+    </View>
+    <Text
+      style={
+        {
+          "color": "#721c24",
+          "fontSize": 14,
+          "lineHeight": 20,
+        }
+      }
+    >
+      Biometric hardware not available on this device
+    </Text>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#e7f3ff",
+        "borderColor": "#b8daff",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "padding": 12,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#004085",
+          "fontSize": 16,
+          "fontWeight": "600",
+          "marginBottom": 8,
+        }
+      }
+    >
+      Capability Summary
+    </Text>
+    <View
+      style={
+        {
+          "gap": 6,
+        }
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ❌
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Biometric authentication 
+          not supported
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ⚠️
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Enrollment required
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`BiometricStatusDisplay Snapshot Tests renders correctly with error state but biometrics available 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#f8f9fa",
+      "borderRadius": 8,
+      "marginVertical": 8,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#333",
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "marginBottom": 16,
+        "textAlign": "center",
+      }
+    }
+  >
+    Biometric Status
+  </Text>
+  <View
+    style={
+      {
+        "backgroundColor": "#fff",
+        "borderColor": "#e1e5e9",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        ❌
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Availability:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#28a745",
+              },
+            ]
+          }
+        >
+          Available
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        📱
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Type:
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#495057",
+              "fontSize": 16,
+              "fontWeight": "600",
+            }
+          }
+        >
+          Touch ID
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        🚫
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Biometric Keys:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#17a2b8",
+              },
+            ]
+          }
+        >
+          No Keys Found
+        </Text>
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#f8d7da",
+        "borderColor": "#f5c6cb",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 8,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 18,
+            "marginRight": 8,
+          }
+        }
+      >
+        ⚠️
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#721c24",
+            "fontSize": 16,
+            "fontWeight": "600",
+          }
+        }
+      >
+        Error Details
+      </Text>
+    </View>
+    <Text
+      style={
+        {
+          "color": "#721c24",
+          "fontSize": 14,
+          "lineHeight": 20,
+        }
+      }
+    >
+      Failed to check key existence
+    </Text>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#e7f3ff",
+        "borderColor": "#b8daff",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "padding": 12,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#004085",
+          "fontSize": 16,
+          "fontWeight": "600",
+          "marginBottom": 8,
+        }
+      }
+    >
+      Capability Summary
+    </Text>
+    <View
+      style={
+        {
+          "gap": 6,
+        }
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ✅
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Biometric authentication 
+          supported
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ⚠️
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Enrollment required
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          💡
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Tap "Enroll" to create biometric keys
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`BiometricStatusDisplay Snapshot Tests renders correctly with long error message 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#f8f9fa",
+      "borderRadius": 8,
+      "marginVertical": 8,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#333",
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "marginBottom": 16,
+        "textAlign": "center",
+      }
+    }
+  >
+    Biometric Status
+  </Text>
+  <View
+    style={
+      {
+        "backgroundColor": "#fff",
+        "borderColor": "#e1e5e9",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        ❌
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Availability:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#ffc107",
+              },
+            ]
+          }
+        >
+          Not Available
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        🚫
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Biometric Keys:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#17a2b8",
+              },
+            ]
+          }
+        >
+          No Keys Found
+        </Text>
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#f8d7da",
+        "borderColor": "#f5c6cb",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 8,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 18,
+            "marginRight": 8,
+          }
+        }
+      >
+        ⚠️
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#721c24",
+            "fontSize": 16,
+            "fontWeight": "600",
+          }
+        }
+      >
+        Error Details
+      </Text>
+    </View>
+    <Text
+      style={
+        {
+          "color": "#721c24",
+          "fontSize": 14,
+          "lineHeight": 20,
+        }
+      }
+    >
+      This is a very long error message that should wrap properly and display all the details about what went wrong during the biometric operation. It includes technical details and user-friendly explanations.
+    </Text>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#e7f3ff",
+        "borderColor": "#b8daff",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "padding": 12,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#004085",
+          "fontSize": 16,
+          "fontWeight": "600",
+          "marginBottom": 8,
+        }
+      }
+    >
+      Capability Summary
+    </Text>
+    <View
+      style={
+        {
+          "gap": 6,
+        }
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ❌
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Biometric authentication 
+          not supported
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ⚠️
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Enrollment required
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`BiometricStatusDisplay Snapshot Tests renders correctly with undefined biometry type but available 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#f8f9fa",
+      "borderRadius": 8,
+      "marginVertical": 8,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#333",
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "marginBottom": 16,
+        "textAlign": "center",
+      }
+    }
+  >
+    Biometric Status
+  </Text>
+  <View
+    style={
+      {
+        "backgroundColor": "#fff",
+        "borderColor": "#e1e5e9",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "padding": 12,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        ✅
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Sensor Availability:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#28a745",
+              },
+            ]
+          }
+        >
+          Available
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "marginBottom": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "fontSize": 20,
+            "marginRight": 12,
+            "textAlign": "center",
+            "width": 24,
+          }
+        }
+      >
+        🚫
+      </Text>
+      <View
+        style={
+          {
+            "flex": 1,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#6c757d",
+              "fontSize": 14,
+              "fontWeight": "500",
+              "marginBottom": 2,
+            }
+          }
+        >
+          Biometric Keys:
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "color": "#495057",
+                "fontSize": 16,
+                "fontWeight": "600",
+              },
+              {
+                "color": "#17a2b8",
+              },
+            ]
+          }
+        >
+          No Keys Found
+        </Text>
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#e7f3ff",
+        "borderColor": "#b8daff",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "padding": 12,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#004085",
+          "fontSize": 16,
+          "fontWeight": "600",
+          "marginBottom": 8,
+        }
+      }
+    >
+      Capability Summary
+    </Text>
+    <View
+      style={
+        {
+          "gap": 6,
+        }
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ✅
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Biometric authentication 
+          supported
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          ⚠️
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Enrollment required
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "fontSize": 16,
+              "marginRight": 8,
+              "textAlign": "center",
+              "width": 20,
+            }
+          }
+        >
+          💡
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#004085",
+              "flex": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          Tap "Enroll" to create biometric keys
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;
