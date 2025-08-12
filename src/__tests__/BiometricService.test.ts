@@ -382,6 +382,46 @@ describe('BiometricService', () => {
     });
   });
 
+  describe('generatePayload', () => {
+    it('should return custom payload when provided', () => {
+      // Arrange
+      const customPayload = 'my custom payload for signing';
+
+      // Act
+      const result = biometricService.generatePayload(customPayload);
+
+      // Assert
+      expect(result).toBe(customPayload);
+    });
+
+    it('should return timestamp when no custom payload provided', () => {
+      // Act
+      const result = biometricService.generatePayload();
+
+      // Assert
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(new Date(result)).toBeInstanceOf(Date);
+    });
+
+    it('should return timestamp when custom payload is empty string', () => {
+      // Act
+      const result = biometricService.generatePayload('');
+
+      // Assert
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(new Date(result)).toBeInstanceOf(Date);
+    });
+
+    it('should return timestamp when custom payload is undefined', () => {
+      // Act
+      const result = biometricService.generatePayload(undefined);
+
+      // Assert
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(new Date(result)).toBeInstanceOf(Date);
+    });
+  });
+
   describe('validateConfiguration', () => {
     it('should return success when biometrics are available', async () => {
       // Arrange

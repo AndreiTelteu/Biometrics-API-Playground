@@ -271,10 +271,11 @@ function App(): React.JSX.Element {
           );
         }
 
-        // Generate timestamp payload for signature
-        logInfo('validate', 'Generating timestamp payload for signature...');
-        const payload = biometricService.generateTimestampPayload();
-        logInfo('validate', `Generated payload: ${payload}`);
+        // Generate payload for signature (custom or timestamp)
+        logInfo('validate', 'Generating payload for signature...');
+        const payload = biometricService.generatePayload(validateEndpoint.customPayload);
+        const payloadType = validateEndpoint.customPayload ? 'custom' : 'timestamp';
+        logInfo('validate', `Generated ${payloadType} payload: ${payload}`);
 
         // Create signature with biometric authentication
         logInfo(

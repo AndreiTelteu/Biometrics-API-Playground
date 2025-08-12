@@ -57,6 +57,7 @@ export interface EndpointConfig {
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'PATCH';
   headers?: Record<string, string>;
+  customPayload?: string;
 }
 
 export interface OperationResult {

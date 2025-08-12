@@ -380,4 +380,115 @@ describe('EndpointConfiguration', () => {
 
     expect(mockOnConfigChange).toHaveBeenCalledWith('enroll', savedConfig);
   });
+
+  it('renders custom payload input field only for validation endpoint', () => {
+    const { getByTestId, getAllByText, queryByTestId } = render(
+      <EndpointConfiguration
+        enrollConfig={defaultEnrollConfig}
+        validateConfig={defaultValidateConfig}
+        onConfigChange={mockOnConfigChange}
+      />
+    );
+
+    // Should have only one custom payload label (for validate only)
+    expect(getAllByText('Custom Payload (optional):').length).toBe(1);
+    expect(queryByTestId('enroll-custom-payload')).toBeNull();
+    expect(getByTestId('validate-custom-payload')).toBeTruthy();
+  });
+
+  it('calls onConfigChange when custom payload changes for validation endpoint', () => {
+    const { getByTestId } = render(
+      <EndpointConfiguration
+        enrollConfig={defaultEnrollConfig}
+        validateConfig={defaultValidateConfig}
+        onConfigChange={mockOnConfigChange}
+      />
+    );
+
+    const validatePayloadInput = getByTestId('validate-custom-payload');
+    fireEvent.changeText(validatePayloadInput, 'custom test payload');
+
+    expect(mockOnConfigChange).toHaveBeenCalledWith('validate', {
+      url: '',
+      method: 'POST',
+      customPayload: 'custom test payload'
+    });
+  });
+
+  it('saves custom payload to AsyncStorage', async () => {
+    const { getByTestId } = render(
+      <EndpointConfiguration
+        enrollConfig={defaultEnrollConfig}
+        validateConfig={defaultValidateConfig}
+        onConfigChange={mockOnConfigChange}
+      />
+    );
+
+    const validatePayloadInput = getByTestId('validate-custom-payload');
+    fireEvent.changeText(validatePayloadInput, 'validation payload');
+
+    await waitFor(() => {
+      expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
+        'biometric_validate_config',
+        JSON.stringify({
+          url: '',
+          method: 'POST',
+          customPayload: 'validation payload'
+        })
+      );
+    });
+  });
+
+  it('loads saved custom payload from AsyncStorage', async () => {
+    const savedConfig = {
+      url: 'https://api.example.com/validate',
+      method: 'POST',
+      customPayload: 'saved custom payload'
+    };
+
+    mockAsyncStorage.getItem.mockImplementation((key) => {
+      if (key === 'biometric_validate_config') {
+        return Promise.resolve(JSON.stringify(savedConfig));
+      }
+      return Promise.resolve(null);
+    });
+
+    const { getByDisplayValue } = render(
+      <EndpointConfiguration
+        enrollConfig={defaultEnrollConfig}
+        validateConfig={defaultValidateConfig}
+        onConfigChange={mockOnConfigChange}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getByDisplayValue('saved custom payload')).toBeTruthy();
+    });
+
+    expect(mockOnConfigChange).toHaveBeenCalledWith('validate', savedConfig);
+  });
+
+  it('handles empty custom payload correctly for validation endpoint', () => {
+    const { getByTestId } = render(
+      <EndpointConfiguration
+        enrollConfig={defaultEnrollConfig}
+        validateConfig={defaultValidateConfig}
+        onConfigChange={mockOnConfigChange}
+      />
+    );
+
+    const validatePayloadInput = getByTestId('validate-custom-payload');
+    
+    // Set a payload first
+    fireEvent.changeText(validatePayloadInput, 'test payload');
+    
+    // Then clear it
+    fireEvent.changeText(validatePayloadInput, '');
+
+    expect(mockOnConfigChange).toHaveBeenLastCalledWith('validate', {
+      url: '',
+      method: 'POST',
+      customPayload: undefined
+    });
+  });
 });

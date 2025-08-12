@@ -101,8 +101,15 @@
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
 - [x] 13. Add headers api configuration
+
   - Add ability to attach headers to api configuration, multiple
   - make a ui with one input element repeated foreach header, and a add header button
   - Implement headers in the api fetch
   - make sure you save the header setting the same way you save the endpoint/method
   - modify ui to only have one text input per header. the user should type "Content-Type: application/json" and we split the values when fetching the api
+
+- [x] 14. Customization for signed payload
+
+
+  - Add ability to customize the payload that is signed and sent.
+  - make sure you save the payload customization the same way you save the endpoint/method

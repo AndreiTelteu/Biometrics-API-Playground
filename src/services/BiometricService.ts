@@ -195,6 +195,15 @@ export class BiometricService {
   }
 
   /**
+   * Generate payload for signature creation
+   * @param customPayload - Optional custom payload, if not provided uses timestamp
+   * @returns string - Payload to be signed
+   */
+  generatePayload(customPayload?: string): string {
+    return customPayload || this.generateTimestampPayload();
+  }
+
+  /**
    * Validate biometric configuration and device capabilities
    * @returns Promise<OperationResult> - Validation result
    */

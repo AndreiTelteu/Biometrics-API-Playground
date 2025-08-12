@@ -80,6 +80,9 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
     }))
   );
 
+  // Payload customization state (only for validation endpoint)
+  const [validateCustomPayload, setValidateCustomPayload] = useState(validateConfig.customPayload || '');
+
   // Load saved configuration on component mount
   useEffect(() => {
     loadSavedConfiguration();
@@ -99,16 +102,17 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   }, [enrollUrl, enrollMethod, enrollHeaders]);
 
   useEffect(() => {
-    if (validateUrl || validateMethod !== 'POST' || validateHeaders.length > 0) {
+    if (validateUrl || validateMethod !== 'POST' || validateHeaders.length > 0 || validateCustomPayload) {
       const headers = parseHeadersFromStrings(validateHeaders);
       
       saveConfiguration('validate', { 
         url: validateUrl, 
         method: validateMethod,
-        headers: Object.keys(headers).length > 0 ? headers : undefined
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
+        customPayload: validateCustomPayload || undefined
       });
     }
-  }, [validateUrl, validateMethod, validateHeaders]);
+  }, [validateUrl, validateMethod, validateHeaders, validateCustomPayload]);
 
   const loadSavedConfiguration = async () => {
     try {
@@ -138,6 +142,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         const config = JSON.parse(savedValidateConfig) as EndpointConfig;
         setValidateUrl(config.url);
         setValidateMethod(config.method);
+        setValidateCustomPayload(config.customPayload || '');
         
         // Load headers
         if (config.headers) {
@@ -212,7 +217,8 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
       const newConfig: EndpointConfig = { 
         url, 
         method: validateMethod,
-        headers: Object.keys(headers).length > 0 ? headers : undefined
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
+        customPayload: validateCustomPayload || undefined
       };
       onConfigChange('validate', newConfig);
     }
@@ -237,7 +243,23 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
     const newConfig: EndpointConfig = { 
       url: validateUrl, 
       method,
-      headers: Object.keys(headers).length > 0 ? headers : undefined
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
+      customPayload: validateCustomPayload || undefined
+    };
+    onConfigChange('validate', newConfig);
+  };
+
+
+
+  const handleValidatePayloadChange = (payload: string) => {
+    setValidateCustomPayload(payload);
+    const headers = parseHeadersFromStrings(validateHeaders);
+    
+    const newConfig: EndpointConfig = { 
+      url: validateUrl, 
+      method: validateMethod,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
+      customPayload: payload || undefined
     };
     onConfigChange('validate', newConfig);
   };
@@ -292,7 +314,8 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
     const newConfig: EndpointConfig = { 
       url: validateUrl, 
       method: validateMethod,
-      headers: Object.keys(headers).length > 0 ? headers : undefined
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
+      customPayload: validateCustomPayload || undefined
     };
     onConfigChange('validate', newConfig);
   };
@@ -391,6 +414,8 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             <Text style={styles.noHeadersText}>No headers configured</Text>
           )}
         </View>
+
+
       </View>
 
       {/* Validation Endpoint Configuration */}
@@ -474,6 +499,24 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
           {validateHeaders.length === 0 && (
             <Text style={styles.noHeadersText}>No headers configured</Text>
           )}
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Custom Payload (optional):</Text>
+          <TextInput
+            style={[styles.textInput, styles.payloadInput]}
+            value={validateCustomPayload}
+            onChangeText={handleValidatePayloadChange}
+            placeholder="Custom payload to sign (leave empty for timestamp)"
+            placeholderTextColor="#999"
+            multiline={true}
+            numberOfLines={3}
+            textAlignVertical="top"
+            testID="validate-custom-payload"
+          />
+          <Text style={styles.helperText}>
+            If empty, a timestamp will be used as the default payload
+          </Text>
         </View>
       </View>
 
@@ -635,6 +678,16 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 8,
+  },
+  payloadInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  helperText: {
+    color: '#6c757d',
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
 

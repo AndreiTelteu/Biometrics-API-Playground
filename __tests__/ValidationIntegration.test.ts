@@ -10,7 +10,7 @@ describe('Validation Flow Integration', () => {
     
     // Check for enhanced validation flow components
     expect(appContent).toContain('handleValidate');
-    expect(appContent).toContain('biometricService.generateTimestampPayload');
+    expect(appContent).toContain('biometricService.generatePayload');
     expect(appContent).toContain('biometricService.createSignature');
     expect(appContent).toContain('biometricAPIService.validateSignature');
     
@@ -30,16 +30,17 @@ describe('Validation Flow Integration', () => {
     console.log('✅ Prerequisite checks implemented in validation flow');
   });
 
-  it('should validate timestamp payload generation', () => {
+  it('should validate payload generation with custom support', () => {
     const fs = require('fs');
     const appContent = fs.readFileSync('App.tsx', 'utf8');
     
-    // Check for timestamp payload generation
-    expect(appContent).toContain('generateTimestampPayload');
-    expect(appContent).toContain('Generated payload:');
+    // Check for payload generation with custom support
+    expect(appContent).toContain('generatePayload');
+    expect(appContent).toContain('Generated');
     expect(appContent).toContain('payload');
+    expect(appContent).toContain('customPayload');
     
-    console.log('✅ Timestamp payload generation implemented');
+    console.log('✅ Payload generation with custom support implemented');
   });
 
   it('should validate signature creation with proper options', () => {
@@ -112,7 +113,7 @@ describe('Validation Flow Integration', () => {
     // Check for detailed logging
     expect(appContent).toContain("logInfo('validate'");
     expect(appContent).toContain("logSuccess(");
-    expect(appContent).toContain('Generating timestamp payload');
+    expect(appContent).toContain('Generating payload for signature');
     expect(appContent).toContain('Requesting biometric authentication');
     expect(appContent).toContain('Sending signature to validation endpoint');
     
@@ -125,7 +126,7 @@ describe('Validation Flow Integration', () => {
     
     // Check for signature-related methods
     expect(serviceContent).toContain('createSignature');
-    expect(serviceContent).toContain('generateTimestampPayload');
+    expect(serviceContent).toContain('generatePayload');
     expect(serviceContent).toContain('BiometricSignatureOptions');
     expect(serviceContent).toContain('promptMessage');
     expect(serviceContent).toContain('cancelButtonText');

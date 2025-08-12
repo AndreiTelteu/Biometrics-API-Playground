@@ -49,6 +49,7 @@ export const DEFAULT_VALIDATE_ENDPOINT: EndpointConfig = {
   headers: {
     'Content-Type': 'application/json',
   },
+  customPayload: undefined,
 };
 
 // Error messages
