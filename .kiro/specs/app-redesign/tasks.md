@@ -49,10 +49,9 @@
     - Write unit tests for theme toggle operations and persistence
     - _Requirements: 3.1, 3.4, 3.5, 5.2_
 
-- [ ] 4. Redesign EndpointConfiguration component with collapsible sections
+- [-] 4. Redesign EndpointConfiguration component with collapsible sections
 
-  - [ ] 4.1 Refactor EndpointConfiguration to use CollapsibleSection components
-
+  - [x] 4.1 Refactor EndpointConfiguration to use CollapsibleSection components
     - Wrap enrollment configuration in CollapsibleSection component
     - Wrap validation configuration in CollapsibleSection component
     - Maintain all existing configuration functionality (URL, method, headers, custom payload)
@@ -60,7 +59,6 @@
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 4.2_
 
   - [ ] 4.2 Apply modern form styling to configuration inputs
-
     - Update TextInput components with modern styling and focus states
     - Enhance method selector buttons with new design
     - Improve header input styling and add/remove button design

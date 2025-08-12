@@ -3,6 +3,7 @@
  * 
  * Provides UI for configuring API endpoints with URL and HTTP method inputs,
  * form validation, and persistent storage using AsyncStorage.
+ * Now features collapsible sections for better organization.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -16,6 +17,8 @@ import {
 // Note: Using a simple button-based method selector instead of Picker for better test compatibility
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EndpointConfig, HttpMethod, ValidationResult } from '../types';
+import { CollapsibleSection } from './CollapsibleSection';
+import { useTheme } from '../theme';
 
 interface EndpointConfigurationProps {
   enrollConfig: EndpointConfig;
@@ -58,6 +61,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   validateConfig,
   onConfigChange,
 }) => {
+  const { theme } = useTheme();
   const [enrollUrl, setEnrollUrl] = useState(enrollConfig.url);
   const [enrollMethod, setEnrollMethod] = useState<HttpMethod>(enrollConfig.method);
   const [validateUrl, setValidateUrl] = useState(validateConfig.url);
@@ -65,6 +69,11 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   
   const [enrollUrlError, setEnrollUrlError] = useState<string>('');
   const [validateUrlError, setValidateUrlError] = useState<string>('');
+
+  // Focus states for enhanced styling
+  const [enrollUrlFocused, setEnrollUrlFocused] = useState(false);
+  const [validateUrlFocused, setValidateUrlFocused] = useState(false);
+  const [validatePayloadFocused, setValidatePayloadFocused] = useState(false);
 
   // Headers state
   const [enrollHeaders, setEnrollHeaders] = useState<HeaderEntry[]>(() => 
@@ -328,22 +337,43 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
     setValidateHeaders(headers => headers.filter(header => header.id !== id));
   };
 
+  // Helper functions to detect errors in each section
+  const hasEnrollmentErrors = () => {
+    return enrollUrlError.length > 0;
+  };
+
+  const hasValidationErrors = () => {
+    return validateUrlError.length > 0;
+  };
+
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>API Endpoint Configuration</Text>
       
       {/* Enrollment Endpoint Configuration */}
-      <View style={styles.configSection}>
-        <Text style={styles.sectionTitle}>Enrollment Endpoint</Text>
-        
+      <CollapsibleSection
+        id="enrollment-config"
+        title="Enrollment Endpoint"
+        defaultExpanded={true}
+        hasErrors={hasEnrollmentErrors()}
+        testID="enrollment-config-section"
+      >
         <View style={styles.inputGroup}>
           <Text style={styles.label}>URL:</Text>
           <TextInput
-            style={[styles.textInput, enrollUrlError ? styles.inputError : null]}
+            style={[
+              styles.textInput,
+              enrollUrlFocused && styles.textInputFocused,
+              enrollUrlError ? styles.inputError : null
+            ]}
             value={enrollUrl}
             onChangeText={handleEnrollUrlChange}
+            onFocus={() => setEnrollUrlFocused(true)}
+            onBlur={() => setEnrollUrlFocused(false)}
             placeholder="https://api.example.com/enroll"
-            placeholderTextColor="#999"
+            placeholderTextColor={theme.colors.textSecondary}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
@@ -397,7 +427,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
                 value={header.headerString}
                 onChangeText={(text) => updateEnrollHeader(header.id, text)}
                 placeholder="Content-Type: application/json"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.colors.textSecondary}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -414,14 +444,16 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             <Text style={styles.noHeadersText}>No headers configured</Text>
           )}
         </View>
-
-
-      </View>
+      </CollapsibleSection>
 
       {/* Validation Endpoint Configuration */}
-      <View style={styles.configSection}>
-        <Text style={styles.sectionTitle}>Validation Endpoint</Text>
-        
+      <CollapsibleSection
+        id="validation-config"
+        title="Validation Endpoint"
+        defaultExpanded={true}
+        hasErrors={hasValidationErrors()}
+        testID="validation-config-section"
+      >
         <View style={styles.inputGroup}>
           <Text style={styles.label}>URL:</Text>
           <TextInput
@@ -429,7 +461,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             value={validateUrl}
             onChangeText={handleValidateUrlChange}
             placeholder="https://api.example.com/validate"
-            placeholderTextColor="#999"
+            placeholderTextColor={theme.colors.textSecondary}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
@@ -483,7 +515,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
                 value={header.headerString}
                 onChangeText={(text) => updateValidateHeader(header.id, text)}
                 placeholder="Content-Type: application/json"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.colors.textSecondary}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -508,7 +540,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             value={validateCustomPayload}
             onChangeText={handleValidatePayloadChange}
             placeholder="{date}"
-            placeholderTextColor="#999"
+            placeholderTextColor={theme.colors.textSecondary}
             multiline={true}
             numberOfLines={3}
             textAlignVertical="top"
@@ -518,7 +550,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             Use {'{date}'} to insert the current timestamp. Example: "user_action_{'{date}'}" will become "user_action_2024-01-15T10:30:00.000Z"
           </Text>
         </View>
-      </View>
+      </CollapsibleSection>
 
       {(!enrollUrl && !validateUrl) && (
         <View style={styles.warningContainer}>
@@ -531,164 +563,151 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginVertical: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  configSection: {
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#e1e5e9',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#495057',
-    marginBottom: 12,
-  },
-  inputGroup: {
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6c757d',
-    marginBottom: 4,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 4,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: '#fff',
-    color: '#495057',
-  },
-  inputError: {
-    borderColor: '#dc3545',
-  },
-  errorText: {
-    color: '#dc3545',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  methodSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  methodButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 4,
-    backgroundColor: '#fff',
-  },
-  methodButtonSelected: {
-    backgroundColor: '#007bff',
-    borderColor: '#007bff',
-  },
-  methodButtonText: {
-    fontSize: 14,
-    color: '#495057',
-    fontWeight: '500',
-  },
-  methodButtonTextSelected: {
-    color: '#fff',
-  },
-  warningContainer: {
-    padding: 12,
-    backgroundColor: '#fff3cd',
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#ffeaa7',
-    marginTop: 8,
-  },
-  warningText: {
-    color: '#856404',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  addHeaderButton: {
-    backgroundColor: '#28a745',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-  },
-  addHeaderButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  headerInput: {
-    borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 4,
-    padding: 8,
-    fontSize: 14,
-    backgroundColor: '#fff',
-    color: '#495057',
-  },
-  headerFullInput: {
-    flex: 1,
-  },
-  removeHeaderButton: {
-    backgroundColor: '#dc3545',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeHeaderButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    lineHeight: 20,
-  },
-  noHeadersText: {
-    color: '#6c757d',
-    fontSize: 12,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: 8,
-  },
-  payloadInput: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  helperText: {
-    color: '#6c757d',
-    fontSize: 12,
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      padding: theme.spacing.md,
+      backgroundColor: theme.colors.background,
+      borderRadius: theme.borderRadius.lg,
+      marginVertical: theme.spacing.sm,
+    },
+    title: {
+      fontSize: theme.typography.sizes.xl,
+      fontWeight: theme.typography.weights.bold,
+      color: theme.colors.text,
+      marginBottom: theme.spacing.md,
+      textAlign: 'center',
+    },
+    inputGroup: {
+      marginBottom: theme.spacing.md,
+    },
+    label: {
+      fontSize: theme.typography.sizes.sm,
+      fontWeight: theme.typography.weights.medium,
+      color: theme.colors.textSecondary,
+      marginBottom: theme.spacing.xs,
+    },
+    textInput: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.md,
+      fontSize: theme.typography.sizes.base,
+      backgroundColor: theme.colors.surface,
+      color: theme.colors.text,
+    },
+    inputError: {
+      borderColor: theme.colors.error,
+    },
+    errorText: {
+      color: theme.colors.error,
+      fontSize: theme.typography.sizes.xs,
+      marginTop: theme.spacing.xs,
+    },
+    methodSelector: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.spacing.sm,
+    },
+    methodButton: {
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.surface,
+    },
+    methodButtonSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    methodButtonText: {
+      fontSize: theme.typography.sizes.sm,
+      color: theme.colors.text,
+      fontWeight: theme.typography.weights.medium,
+    },
+    methodButtonTextSelected: {
+      color: '#FFFFFF',
+    },
+    warningContainer: {
+      padding: theme.spacing.md,
+      backgroundColor: theme.colors.warning + '20', // Add transparency
+      borderRadius: theme.borderRadius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.warning,
+      marginTop: theme.spacing.sm,
+    },
+    warningText: {
+      color: theme.colors.warning,
+      fontSize: theme.typography.sizes.sm,
+      textAlign: 'center',
+    },
+    headerTitleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: theme.spacing.sm,
+    },
+    addHeaderButton: {
+      backgroundColor: theme.colors.success,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.borderRadius.md,
+    },
+    addHeaderButtonText: {
+      color: '#FFFFFF',
+      fontSize: theme.typography.sizes.xs,
+      fontWeight: theme.typography.weights.medium,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: theme.spacing.sm,
+      gap: theme.spacing.sm,
+    },
+    headerInput: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.sm,
+      fontSize: theme.typography.sizes.sm,
+      backgroundColor: theme.colors.surface,
+      color: theme.colors.text,
+    },
+    headerFullInput: {
+      flex: 1,
+    },
+    removeHeaderButton: {
+      backgroundColor: theme.colors.error,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    removeHeaderButtonText: {
+      color: '#FFFFFF',
+      fontSize: theme.typography.sizes.lg,
+      fontWeight: theme.typography.weights.bold,
+      lineHeight: 20,
+    },
+    noHeadersText: {
+      color: theme.colors.textSecondary,
+      fontSize: theme.typography.sizes.xs,
+      fontStyle: 'italic',
+      textAlign: 'center',
+      paddingVertical: theme.spacing.sm,
+    },
+    payloadInput: {
+      minHeight: 80,
+      textAlignVertical: 'top',
+    },
+    helperText: {
+      color: theme.colors.textSecondary,
+      fontSize: theme.typography.sizes.xs,
+      marginTop: theme.spacing.xs,
+      fontStyle: 'italic',
+    },
+  });
 
 export default EndpointConfiguration;

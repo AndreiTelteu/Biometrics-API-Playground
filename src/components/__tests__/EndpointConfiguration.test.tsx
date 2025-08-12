@@ -7,6 +7,7 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EndpointConfiguration from '../EndpointConfiguration';
 import { EndpointConfig } from '../../types';
+import { ThemeProvider } from '../../theme';
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -17,6 +18,11 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 // No need to mock Picker since we're using TouchableOpacity buttons
 
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
+
+// Test wrapper component with ThemeProvider
+const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <ThemeProvider>{children}</ThemeProvider>
+);
 
 describe('EndpointConfiguration', () => {
   const mockOnConfigChange = jest.fn();
@@ -33,17 +39,27 @@ describe('EndpointConfiguration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockAsyncStorage.getItem.mockResolvedValue(null);
+    // Mock AsyncStorage to resolve immediately for CollapsibleSection state loading
+    mockAsyncStorage.getItem.mockImplementation((key) => {
+      // For collapsible section keys, return expanded state
+      if (key.startsWith('collapsible_section_')) {
+        return Promise.resolve(JSON.stringify(true));
+      }
+      // For other keys, return null (no saved config)
+      return Promise.resolve(null);
+    });
     mockAsyncStorage.setItem.mockResolvedValue();
   });
 
   it('renders correctly with default props', () => {
     const { getByText, getByPlaceholderText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     expect(getByText('API Endpoint Configuration')).toBeTruthy();
@@ -55,11 +71,13 @@ describe('EndpointConfiguration', () => {
 
   it('shows warning when no endpoints are configured', () => {
     const { getByText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     expect(getByText(/Configure at least one endpoint/)).toBeTruthy();
@@ -67,11 +85,13 @@ describe('EndpointConfiguration', () => {
 
   it('validates URL format correctly', () => {
     const { getByPlaceholderText, getByText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const enrollUrlInput = getByPlaceholderText('https://api.example.com/enroll');
@@ -84,11 +104,13 @@ describe('EndpointConfiguration', () => {
 
   it('accepts valid URLs', () => {
     const { getByPlaceholderText, queryByText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const enrollUrlInput = getByPlaceholderText('https://api.example.com/enroll');
@@ -105,11 +127,13 @@ describe('EndpointConfiguration', () => {
 
   it('calls onConfigChange when URL changes', () => {
     const { getByPlaceholderText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const enrollUrlInput = getByPlaceholderText('https://api.example.com/enroll');
@@ -137,11 +161,13 @@ describe('EndpointConfiguration', () => {
       .mockResolvedValueOnce(JSON.stringify(savedValidateConfig));
 
     render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     await waitFor(() => {
@@ -154,11 +180,13 @@ describe('EndpointConfiguration', () => {
 
   it('saves configuration to AsyncStorage when URL changes', async () => {
     const { getByPlaceholderText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const enrollUrlInput = getByPlaceholderText('https://api.example.com/enroll');
@@ -180,11 +208,13 @@ describe('EndpointConfiguration', () => {
     mockAsyncStorage.getItem.mockRejectedValue(new Error('Storage error'));
 
     render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     await waitFor(() => {
@@ -199,11 +229,13 @@ describe('EndpointConfiguration', () => {
 
   it('allows empty URLs (optional configuration)', () => {
     const { getByPlaceholderText, queryByText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const enrollUrlInput = getByPlaceholderText('https://api.example.com/enroll');
@@ -216,11 +248,13 @@ describe('EndpointConfiguration', () => {
 
   it('validates both HTTP and HTTPS URLs', () => {
     const { getByPlaceholderText, queryByText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const enrollUrlInput = getByPlaceholderText('https://api.example.com/enroll');
@@ -236,11 +270,13 @@ describe('EndpointConfiguration', () => {
 
   it('updates validation endpoint configuration', () => {
     const { getByPlaceholderText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const validateUrlInput = getByPlaceholderText('https://api.example.com/validate');
@@ -256,11 +292,13 @@ describe('EndpointConfiguration', () => {
 
   it('displays validation errors for validate endpoint', () => {
     const { getByPlaceholderText, getByText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const validateUrlInput = getByPlaceholderText('https://api.example.com/validate');
@@ -271,11 +309,13 @@ describe('EndpointConfiguration', () => {
 
   it('changes HTTP method when method button is pressed', () => {
     const { getByTestId } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const putButton = getByTestId('enroll-method-PUT');
@@ -294,11 +334,13 @@ describe('EndpointConfiguration', () => {
     };
 
     const { getByTestId } = render(
-      <EndpointConfiguration
-        enrollConfig={enrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={enrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const putButton = getByTestId('enroll-method-PUT');
@@ -317,11 +359,13 @@ describe('EndpointConfiguration', () => {
 
   it('allows adding and removing headers', () => {
     const { getByTestId, getByPlaceholderText, queryByPlaceholderText } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     // Initially no header inputs should be visible
@@ -367,11 +411,13 @@ describe('EndpointConfiguration', () => {
     });
 
     const { getByDisplayValue } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     // Wait for async loading
@@ -385,11 +431,13 @@ describe('EndpointConfiguration', () => {
 
   it('renders custom payload input field only for validation endpoint', () => {
     const { getByTestId, getAllByText, queryByTestId } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     // Should have only one custom payload label (for validate only)
@@ -400,11 +448,13 @@ describe('EndpointConfiguration', () => {
 
   it('calls onConfigChange when custom payload changes for validation endpoint', () => {
     const { getByTestId } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const validatePayloadInput = getByTestId('validate-custom-payload');
@@ -419,11 +469,13 @@ describe('EndpointConfiguration', () => {
 
   it('saves custom payload to AsyncStorage', async () => {
     const { getByTestId } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const validatePayloadInput = getByTestId('validate-custom-payload');
@@ -456,11 +508,13 @@ describe('EndpointConfiguration', () => {
     });
 
     const { getByDisplayValue } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     await waitFor(() => {
@@ -472,11 +526,13 @@ describe('EndpointConfiguration', () => {
 
   it('handles empty custom payload correctly for validation endpoint', () => {
     const { getByTestId } = render(
-      <EndpointConfiguration
-        enrollConfig={defaultEnrollConfig}
-        validateConfig={defaultValidateConfig}
-        onConfigChange={mockOnConfigChange}
-      />
+      <TestWrapper>
+        <EndpointConfiguration
+          enrollConfig={defaultEnrollConfig}
+          validateConfig={defaultValidateConfig}
+          onConfigChange={mockOnConfigChange}
+        />
+      </TestWrapper>
     );
 
     const validatePayloadInput = getByTestId('validate-custom-payload');
