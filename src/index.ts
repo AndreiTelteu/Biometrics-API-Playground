@@ -16,3 +16,6 @@ export * from './services';
 
 // Export components
 export * from './components';
+
+// Export theme system
+export * from './theme';
