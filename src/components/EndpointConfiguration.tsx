@@ -81,7 +81,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   );
 
   // Payload customization state (only for validation endpoint)
-  const [validateCustomPayload, setValidateCustomPayload] = useState(validateConfig.customPayload || '');
+  const [validateCustomPayload, setValidateCustomPayload] = useState(validateConfig.customPayload || '{date}');
 
   // Load saved configuration on component mount
   useEffect(() => {
@@ -142,7 +142,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         const config = JSON.parse(savedValidateConfig) as EndpointConfig;
         setValidateUrl(config.url);
         setValidateMethod(config.method);
-        setValidateCustomPayload(config.customPayload || '');
+        setValidateCustomPayload(config.customPayload || '{date}');
         
         // Load headers
         if (config.headers) {
@@ -502,12 +502,12 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Custom Payload (optional):</Text>
+          <Text style={styles.label}>Custom Payload Template:</Text>
           <TextInput
             style={[styles.textInput, styles.payloadInput]}
             value={validateCustomPayload}
             onChangeText={handleValidatePayloadChange}
-            placeholder="Custom payload to sign (leave empty for timestamp)"
+            placeholder="{date}"
             placeholderTextColor="#999"
             multiline={true}
             numberOfLines={3}
@@ -515,7 +515,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             testID="validate-custom-payload"
           />
           <Text style={styles.helperText}>
-            If empty, a timestamp will be used as the default payload
+            Use {'{date}'} to insert the current timestamp. Example: "user_action_{'{date}'}" will become "user_action_2024-01-15T10:30:00.000Z"
           </Text>
         </View>
       </View>

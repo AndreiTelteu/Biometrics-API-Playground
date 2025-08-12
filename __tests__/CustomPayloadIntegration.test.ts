@@ -19,7 +19,7 @@ describe('Custom Payload Integration', () => {
     const componentContent = fs.readFileSync('src/components/EndpointConfiguration.tsx', 'utf8');
     
     // Check for custom payload UI elements (validation only)
-    expect(componentContent).toContain('Custom Payload (optional):');
+    expect(componentContent).toContain('Custom Payload Template:');
     expect(componentContent).toContain('validateCustomPayload');
     expect(componentContent).toContain('handleValidatePayloadChange');
     expect(componentContent).toContain('testID="validate-custom-payload"');
@@ -38,7 +38,7 @@ describe('Custom Payload Integration', () => {
     
     // Check for custom payload in validation configuration saving only
     expect(componentContent).toContain('customPayload: validateCustomPayload || undefined');
-    expect(componentContent).toContain('setValidateCustomPayload(config.customPayload || \'\')');
+    expect(componentContent).toContain('setValidateCustomPayload(config.customPayload || \'{date}\')');
     
     // Should NOT contain enrollment custom payload persistence
     expect(componentContent).not.toContain('customPayload: enrollCustomPayload || undefined');
@@ -51,11 +51,12 @@ describe('Custom Payload Integration', () => {
     const fs = require('fs');
     const serviceContent = fs.readFileSync('src/services/BiometricService.ts', 'utf8');
     
-    // Check for generatePayload method
+    // Check for generatePayload method with template processing
     expect(serviceContent).toContain('generatePayload(customPayload?: string): string');
-    expect(serviceContent).toContain('return customPayload || this.generateTimestampPayload();');
+    expect(serviceContent).toContain('processPayloadTemplate');
+    expect(serviceContent).toContain('replace(/\\{date\\}/g, currentDate)');
     
-    console.log('✅ BiometricService generatePayload method implemented');
+    console.log('✅ BiometricService generatePayload method implemented with template processing');
   });
 
   it('should validate custom payload usage in App validation flow', () => {
@@ -91,11 +92,11 @@ describe('Custom Payload Integration', () => {
     const fs = require('fs');
     const componentContent = fs.readFileSync('src/components/EndpointConfiguration.tsx', 'utf8');
     
-    // Check for helpful UI text
-    expect(componentContent).toContain('Custom payload to sign (leave empty for timestamp)');
-    expect(componentContent).toContain('If empty, a timestamp will be used as the default payload');
+    // Check for helpful UI text with template syntax
+    expect(componentContent).toContain('Use {\'{date}\'} to insert the current timestamp');
+    expect(componentContent).toContain('placeholder="{date}"');
     
-    console.log('✅ Custom payload UI includes helpful text and placeholders');
+    console.log('✅ Custom payload UI includes helpful text and template placeholders');
   });
 
   it('should validate custom payload styling in EndpointConfiguration', () => {

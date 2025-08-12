@@ -383,7 +383,7 @@ describe('BiometricService', () => {
   });
 
   describe('generatePayload', () => {
-    it('should return custom payload when provided', () => {
+    it('should return custom payload when provided without template variables', () => {
       // Arrange
       const customPayload = 'my custom payload for signing';
 
@@ -392,6 +392,42 @@ describe('BiometricService', () => {
 
       // Assert
       expect(result).toBe(customPayload);
+    });
+
+    it('should process template variables in custom payload', () => {
+      // Arrange
+      const customPayload = 'user_action_{date}';
+
+      // Act
+      const result = biometricService.generatePayload(customPayload);
+
+      // Assert
+      expect(result).toMatch(/^user_action_\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(result).not.toBe(customPayload); // Should be different from template
+    });
+
+    it('should replace multiple {date} occurrences in template', () => {
+      // Arrange
+      const customPayload = 'start_{date}_middle_{date}_end';
+
+      // Act
+      const result = biometricService.generatePayload(customPayload);
+
+      // Assert
+      expect(result).toMatch(/^start_\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z_middle_\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z_end$/);
+      expect(result).not.toContain('{date}'); // All templates should be replaced
+    });
+
+    it('should handle {date} template as the entire payload', () => {
+      // Arrange
+      const customPayload = '{date}';
+
+      // Act
+      const result = biometricService.generatePayload(customPayload);
+
+      // Assert
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(new Date(result)).toBeInstanceOf(Date);
     });
 
     it('should return timestamp when no custom payload provided', () => {

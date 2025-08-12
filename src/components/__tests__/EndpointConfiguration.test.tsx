@@ -249,6 +249,8 @@ describe('EndpointConfiguration', () => {
     expect(mockOnConfigChange).toHaveBeenCalledWith('validate', {
       url: 'https://validate.test.com',
       method: 'POST',
+      headers: undefined,
+      customPayload: '{date}',
     });
   });
 
@@ -391,7 +393,7 @@ describe('EndpointConfiguration', () => {
     );
 
     // Should have only one custom payload label (for validate only)
-    expect(getAllByText('Custom Payload (optional):').length).toBe(1);
+    expect(getAllByText('Custom Payload Template:').length).toBe(1);
     expect(queryByTestId('enroll-custom-payload')).toBeNull();
     expect(getByTestId('validate-custom-payload')).toBeTruthy();
   });

@@ -195,12 +195,29 @@ export class BiometricService {
   }
 
   /**
-   * Generate payload for signature creation
-   * @param customPayload - Optional custom payload, if not provided uses timestamp
-   * @returns string - Payload to be signed
+   * Generate payload for signature creation with template processing
+   * @param customPayload - Optional custom payload template, if not provided uses timestamp
+   * @returns string - Payload to be signed with templates processed
    */
   generatePayload(customPayload?: string): string {
-    return customPayload || this.generateTimestampPayload();
+    if (!customPayload) {
+      return this.generateTimestampPayload();
+    }
+
+    // Process template variables
+    return this.processPayloadTemplate(customPayload);
+  }
+
+  /**
+   * Process payload template by replacing template variables
+   * @param template - Template string with variables like {date}
+   * @returns string - Processed template with variables replaced
+   */
+  private processPayloadTemplate(template: string): string {
+    const currentDate = new Date().toISOString();
+    
+    // Replace {date} with current timestamp
+    return template.replace(/\{date\}/g, currentDate);
   }
 
   /**

@@ -110,6 +110,12 @@
 
 - [x] 14. Customization for signed payload
 
-
   - Add ability to customize the payload that is signed and sent.
   - make sure you save the payload customization the same way you save the endpoint/method
+
+- [x] 15. The payload customization should have a template
+
+
+  - instead of overwriting the entire payload, i want to use the customization as a template where i can use {date} that will get replaced with the actual date.
+  - specify the {date} syntax in a help text
+  - by default it should be already filled with {date}
