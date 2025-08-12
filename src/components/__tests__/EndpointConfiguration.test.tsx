@@ -312,4 +312,72 @@ describe('EndpointConfiguration', () => {
       expect.objectContaining({ backgroundColor: '#fff' })
     );
   });
+
+  it('allows adding and removing headers', () => {
+    const { getByTestId, getByPlaceholderText, queryByPlaceholderText } = render(
+      <EndpointConfiguration
+        enrollConfig={defaultEnrollConfig}
+        validateConfig={defaultValidateConfig}
+        onConfigChange={mockOnConfigChange}
+      />
+    );
+
+    // Initially no header inputs should be visible
+    expect(queryByPlaceholderText('Content-Type: application/json')).toBeNull();
+
+    // Add a header
+    const addHeaderButton = getByTestId('add-enroll-header');
+    fireEvent.press(addHeaderButton);
+
+    // Now header input should be visible
+    const headerInput = getByPlaceholderText('Content-Type: application/json');
+    
+    expect(headerInput).toBeTruthy();
+
+    // Fill in header value
+    fireEvent.changeText(headerInput, 'Authorization: Bearer token123');
+
+    // Should call onConfigChange with headers
+    expect(mockOnConfigChange).toHaveBeenCalledWith('enroll', {
+      url: '',
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer token123'
+      }
+    });
+  });
+
+  it('loads saved configuration with headers', async () => {
+    const savedConfig = {
+      url: 'https://api.example.com/enroll',
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer token123',
+        'Content-Type': 'application/json'
+      }
+    };
+
+    mockAsyncStorage.getItem.mockImplementation((key) => {
+      if (key === 'biometric_enroll_config') {
+        return Promise.resolve(JSON.stringify(savedConfig));
+      }
+      return Promise.resolve(null);
+    });
+
+    const { getByDisplayValue } = render(
+      <EndpointConfiguration
+        enrollConfig={defaultEnrollConfig}
+        validateConfig={defaultValidateConfig}
+        onConfigChange={mockOnConfigChange}
+      />
+    );
+
+    // Wait for async loading
+    await waitFor(() => {
+      expect(getByDisplayValue('Authorization: Bearer token123')).toBeTruthy();
+      expect(getByDisplayValue('Content-Type: application/json')).toBeTruthy();
+    });
+
+    expect(mockOnConfigChange).toHaveBeenCalledWith('enroll', savedConfig);
+  });
 });

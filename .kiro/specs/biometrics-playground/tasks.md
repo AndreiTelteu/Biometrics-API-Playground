@@ -43,18 +43,15 @@
 
 - [x] 6. Create biometric action buttons component
 
-
   - Create BiometricActions component with EnrollButton, ValidateButton, and DeleteKeysButton
   - Implement proper button state management (enabled/disabled/loading)
   - Add visual feedback for button interactions and loading states
   - Write unit tests for button component interactions and state changes
   - _Requirements: 1.1, 1.2, 2.1, 2.2, 6.1, 6.2, 6.3_
+
 -
 
 - [x] 7. Build status logging and feedback system
-
-
-
 
   - Create StatusLog component for displaying operation history with timestamps
   - Implement real-time status updates during biometric operations
@@ -62,10 +59,7 @@
   - Write tests for status logging functionality and message formatting
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-
 - [x] 8. Integrate all components in main App component
-
-
 
   - Update App.tsx to include BiometricStatusDisplay, EndpointConfiguration, BiometricActions, and StatusLog components
   - Implement state management for biometric status, configuration, and logs using React hooks
@@ -73,23 +67,13 @@
   - Create proper styling and layout for the complete application with ScrollView
   - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1_
 
-
-
-
 - [ ] 9. Implement enrollment flow with backend integration
 
   - Connect enrollment button to BiometricService.createKeys() and BiometricAPIService.enrollPublicKey()
   - Add proper error handling for enrollment failures and network issues
-
-
-
-
   - Implement success feedback with public key display in status log
   - Update biometric status display after successful enrollment
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
-
-
-
 
 - [ ] 10. Implement validation flow with signature verification
 
@@ -97,15 +81,10 @@
   - Add timestamp payload generation using BiometricService.generateTimestampPayload()
   - Implement validation response handling and status display in logs
 
-
-
   - Add proper error handling for signature creation and validation failures
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
 - [ ] 11. Add key management and reset functionality
-
-
-
 
   - Connect delete keys button to BiometricService.deleteKeys()
   - Add confirmation dialog before key deletion using Alert.alert
@@ -120,3 +99,10 @@
   - Add proper loading states and operation progress indicators
   - Write tests for error handling scenarios and user feedback
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+
+- [x] 13. Add headers api configuration
+  - Add ability to attach headers to api configuration, multiple
+  - make a ui with one input element repeated foreach header, and a add header button
+  - Implement headers in the api fetch
+  - make sure you save the header setting the same way you save the endpoint/method
+  - modify ui to only have one text input per header. the user should type "Content-Type: application/json" and we split the values when fetching the api

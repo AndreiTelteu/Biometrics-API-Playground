@@ -23,12 +23,35 @@ interface EndpointConfigurationProps {
   onConfigChange: (type: 'enroll' | 'validate', config: EndpointConfig) => void;
 }
 
+interface HeaderEntry {
+  headerString: string;
+  id: string;
+}
+
 const STORAGE_KEYS = {
   ENROLL_CONFIG: 'biometric_enroll_config',
   VALIDATE_CONFIG: 'biometric_validate_config',
 };
 
 const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH'];
+
+// Helper function to parse header string into key-value pairs
+const parseHeadersFromStrings = (headerEntries: HeaderEntry[]): Record<string, string> => {
+  return headerEntries.reduce((acc, entry) => {
+    const trimmed = entry.headerString.trim();
+    if (trimmed) {
+      const colonIndex = trimmed.indexOf(':');
+      if (colonIndex > 0) {
+        const key = trimmed.substring(0, colonIndex).trim();
+        const value = trimmed.substring(colonIndex + 1).trim();
+        if (key && value) {
+          acc[key] = value;
+        }
+      }
+    }
+    return acc;
+  }, {} as Record<string, string>);
+};
 
 const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   enrollConfig,
@@ -43,6 +66,20 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   const [enrollUrlError, setEnrollUrlError] = useState<string>('');
   const [validateUrlError, setValidateUrlError] = useState<string>('');
 
+  // Headers state
+  const [enrollHeaders, setEnrollHeaders] = useState<HeaderEntry[]>(() => 
+    Object.entries(enrollConfig.headers || {}).map(([key, value], index) => ({
+      id: `enroll-${index}`,
+      headerString: `${key}: ${value}`,
+    }))
+  );
+  const [validateHeaders, setValidateHeaders] = useState<HeaderEntry[]>(() => 
+    Object.entries(validateConfig.headers || {}).map(([key, value], index) => ({
+      id: `validate-${index}`,
+      headerString: `${key}: ${value}`,
+    }))
+  );
+
   // Load saved configuration on component mount
   useEffect(() => {
     loadSavedConfiguration();
@@ -50,16 +87,28 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
 
   // Save configuration whenever it changes
   useEffect(() => {
-    if (enrollUrl || enrollMethod !== 'POST') {
-      saveConfiguration('enroll', { url: enrollUrl, method: enrollMethod });
+    if (enrollUrl || enrollMethod !== 'POST' || enrollHeaders.length > 0) {
+      const headers = parseHeadersFromStrings(enrollHeaders);
+      
+      saveConfiguration('enroll', { 
+        url: enrollUrl, 
+        method: enrollMethod,
+        headers: Object.keys(headers).length > 0 ? headers : undefined
+      });
     }
-  }, [enrollUrl, enrollMethod]);
+  }, [enrollUrl, enrollMethod, enrollHeaders]);
 
   useEffect(() => {
-    if (validateUrl || validateMethod !== 'POST') {
-      saveConfiguration('validate', { url: validateUrl, method: validateMethod });
+    if (validateUrl || validateMethod !== 'POST' || validateHeaders.length > 0) {
+      const headers = parseHeadersFromStrings(validateHeaders);
+      
+      saveConfiguration('validate', { 
+        url: validateUrl, 
+        method: validateMethod,
+        headers: Object.keys(headers).length > 0 ? headers : undefined
+      });
     }
-  }, [validateUrl, validateMethod]);
+  }, [validateUrl, validateMethod, validateHeaders]);
 
   const loadSavedConfiguration = async () => {
     try {
@@ -72,6 +121,16 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         const config = JSON.parse(savedEnrollConfig) as EndpointConfig;
         setEnrollUrl(config.url);
         setEnrollMethod(config.method);
+        
+        // Load headers
+        if (config.headers) {
+          const headerEntries = Object.entries(config.headers).map(([key, value], index) => ({
+            id: `enroll-loaded-${index}`,
+            headerString: `${key}: ${value}`,
+          }));
+          setEnrollHeaders(headerEntries);
+        }
+        
         onConfigChange('enroll', config);
       }
 
@@ -79,6 +138,16 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         const config = JSON.parse(savedValidateConfig) as EndpointConfig;
         setValidateUrl(config.url);
         setValidateMethod(config.method);
+        
+        // Load headers
+        if (config.headers) {
+          const headerEntries = Object.entries(config.headers).map(([key, value], index) => ({
+            id: `validate-loaded-${index}`,
+            headerString: `${key}: ${value}`,
+          }));
+          setValidateHeaders(headerEntries);
+        }
+        
         onConfigChange('validate', config);
       }
     } catch (error) {
@@ -121,7 +190,13 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
     setEnrollUrlError(validation.errors.join(', '));
     
     if (validation.isValid) {
-      const newConfig: EndpointConfig = { url, method: enrollMethod };
+      const headers = parseHeadersFromStrings(enrollHeaders);
+      
+      const newConfig: EndpointConfig = { 
+        url, 
+        method: enrollMethod,
+        headers: Object.keys(headers).length > 0 ? headers : undefined
+      };
       onConfigChange('enroll', newConfig);
     }
   };
@@ -132,21 +207,102 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
     setValidateUrlError(validation.errors.join(', '));
     
     if (validation.isValid) {
-      const newConfig: EndpointConfig = { url, method: validateMethod };
+      const headers = parseHeadersFromStrings(validateHeaders);
+      
+      const newConfig: EndpointConfig = { 
+        url, 
+        method: validateMethod,
+        headers: Object.keys(headers).length > 0 ? headers : undefined
+      };
       onConfigChange('validate', newConfig);
     }
   };
 
   const handleEnrollMethodChange = (method: HttpMethod) => {
     setEnrollMethod(method);
-    const newConfig: EndpointConfig = { url: enrollUrl, method };
+    const headers = parseHeadersFromStrings(enrollHeaders);
+    
+    const newConfig: EndpointConfig = { 
+      url: enrollUrl, 
+      method,
+      headers: Object.keys(headers).length > 0 ? headers : undefined
+    };
     onConfigChange('enroll', newConfig);
   };
 
   const handleValidateMethodChange = (method: HttpMethod) => {
     setValidateMethod(method);
-    const newConfig: EndpointConfig = { url: validateUrl, method };
+    const headers = parseHeadersFromStrings(validateHeaders);
+    
+    const newConfig: EndpointConfig = { 
+      url: validateUrl, 
+      method,
+      headers: Object.keys(headers).length > 0 ? headers : undefined
+    };
     onConfigChange('validate', newConfig);
+  };
+
+  // Header management functions
+  const generateHeaderId = (type: 'enroll' | 'validate') => {
+    return `${type}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  };
+
+  const addEnrollHeader = () => {
+    const newHeader: HeaderEntry = {
+      id: generateHeaderId('enroll'),
+      headerString: '',
+    };
+    setEnrollHeaders([...enrollHeaders, newHeader]);
+  };
+
+  const addValidateHeader = () => {
+    const newHeader: HeaderEntry = {
+      id: generateHeaderId('validate'),
+      headerString: '',
+    };
+    setValidateHeaders([...validateHeaders, newHeader]);
+  };
+
+  const updateEnrollHeader = (id: string, headerString: string) => {
+    const updatedHeaders = enrollHeaders.map(header => 
+      header.id === id ? { ...header, headerString } : header
+    );
+    setEnrollHeaders(updatedHeaders);
+    
+    // Update configuration immediately
+    const headers = parseHeadersFromStrings(updatedHeaders);
+    
+    const newConfig: EndpointConfig = { 
+      url: enrollUrl, 
+      method: enrollMethod,
+      headers: Object.keys(headers).length > 0 ? headers : undefined
+    };
+    onConfigChange('enroll', newConfig);
+  };
+
+  const updateValidateHeader = (id: string, headerString: string) => {
+    const updatedHeaders = validateHeaders.map(header => 
+      header.id === id ? { ...header, headerString } : header
+    );
+    setValidateHeaders(updatedHeaders);
+    
+    // Update configuration immediately
+    const headers = parseHeadersFromStrings(updatedHeaders);
+    
+    const newConfig: EndpointConfig = { 
+      url: validateUrl, 
+      method: validateMethod,
+      headers: Object.keys(headers).length > 0 ? headers : undefined
+    };
+    onConfigChange('validate', newConfig);
+  };
+
+  const removeEnrollHeader = (id: string) => {
+    setEnrollHeaders(headers => headers.filter(header => header.id !== id));
+  };
+
+  const removeValidateHeader = (id: string) => {
+    setValidateHeaders(headers => headers.filter(header => header.id !== id));
   };
 
   return (
@@ -199,6 +355,42 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             ))}
           </View>
         </View>
+
+        <View style={styles.inputGroup}>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.label}>Headers:</Text>
+            <TouchableOpacity
+              style={styles.addHeaderButton}
+              onPress={addEnrollHeader}
+              testID="add-enroll-header"
+            >
+              <Text style={styles.addHeaderButtonText}>+ Add Header</Text>
+            </TouchableOpacity>
+          </View>
+          {enrollHeaders.map((header) => (
+            <View key={header.id} style={styles.headerRow}>
+              <TextInput
+                style={[styles.headerInput, styles.headerFullInput]}
+                value={header.headerString}
+                onChangeText={(text) => updateEnrollHeader(header.id, text)}
+                placeholder="Content-Type: application/json"
+                placeholderTextColor="#999"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={styles.removeHeaderButton}
+                onPress={() => removeEnrollHeader(header.id)}
+                testID={`remove-enroll-header-${header.id}`}
+              >
+                <Text style={styles.removeHeaderButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          {enrollHeaders.length === 0 && (
+            <Text style={styles.noHeadersText}>No headers configured</Text>
+          )}
+        </View>
       </View>
 
       {/* Validation Endpoint Configuration */}
@@ -246,6 +438,42 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.label}>Headers:</Text>
+            <TouchableOpacity
+              style={styles.addHeaderButton}
+              onPress={addValidateHeader}
+              testID="add-validate-header"
+            >
+              <Text style={styles.addHeaderButtonText}>+ Add Header</Text>
+            </TouchableOpacity>
+          </View>
+          {validateHeaders.map((header) => (
+            <View key={header.id} style={styles.headerRow}>
+              <TextInput
+                style={[styles.headerInput, styles.headerFullInput]}
+                value={header.headerString}
+                onChangeText={(text) => updateValidateHeader(header.id, text)}
+                placeholder="Content-Type: application/json"
+                placeholderTextColor="#999"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={styles.removeHeaderButton}
+                onPress={() => removeValidateHeader(header.id)}
+                testID={`remove-validate-header-${header.id}`}
+              >
+                <Text style={styles.removeHeaderButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          {validateHeaders.length === 0 && (
+            <Text style={styles.noHeadersText}>No headers configured</Text>
+          )}
         </View>
       </View>
 
@@ -351,6 +579,62 @@ const styles = StyleSheet.create({
     color: '#856404',
     fontSize: 14,
     textAlign: 'center',
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addHeaderButton: {
+    backgroundColor: '#28a745',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  addHeaderButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  headerInput: {
+    borderWidth: 1,
+    borderColor: '#ced4da',
+    borderRadius: 4,
+    padding: 8,
+    fontSize: 14,
+    backgroundColor: '#fff',
+    color: '#495057',
+  },
+  headerFullInput: {
+    flex: 1,
+  },
+  removeHeaderButton: {
+    backgroundColor: '#dc3545',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeHeaderButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    lineHeight: 20,
+  },
+  noHeadersText: {
+    color: '#6c757d',
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 8,
   },
 });
 
