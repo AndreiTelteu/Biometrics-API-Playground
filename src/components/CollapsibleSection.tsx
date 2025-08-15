@@ -107,10 +107,22 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         if (savedState !== null) {
           const expanded = JSON.parse(savedState);
           setIsExpanded(expanded);
-          // Set all animation values immediately without animation
-          rotationAnim.setValue(expanded ? 1 : 0);
-          heightAnim.setValue(expanded ? 1 : 0);
-          opacityAnim.setValue(expanded ? 1 : 0);
+          // Set all animation values immediately using appropriate drivers
+          Animated.timing(rotationAnim, {
+            toValue: expanded ? 1 : 0,
+            duration: 0, // Immediate
+            useNativeDriver: true,
+          }).start();
+          Animated.timing(heightAnim, {
+            toValue: expanded ? 1 : 0,
+            duration: 0, // Immediate
+            useNativeDriver: false,
+          }).start();
+          Animated.timing(opacityAnim, {
+            toValue: expanded ? 1 : 0,
+            duration: 0, // Immediate
+            useNativeDriver: false,
+          }).start();
         }
       } catch (error) {
         console.warn('Failed to load collapsible section state:', error);
@@ -142,10 +154,22 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
     // Use InteractionManager to ensure smooth animations
     InteractionManager.runAfterInteractions(() => {
       if (reducedMotion) {
-        // Immediate state change for reduced motion
-        rotationAnim.setValue(newExpanded ? 1 : 0);
-        heightAnim.setValue(newExpanded ? 1 : 0);
-        opacityAnim.setValue(newExpanded ? 1 : 0);
+        // Immediate state change for reduced motion using appropriate drivers
+        Animated.timing(rotationAnim, {
+          toValue: newExpanded ? 1 : 0,
+          duration: 0, // Immediate
+          useNativeDriver: true,
+        }).start();
+        Animated.timing(heightAnim, {
+          toValue: newExpanded ? 1 : 0,
+          duration: 0, // Immediate
+          useNativeDriver: false,
+        }).start();
+        Animated.timing(opacityAnim, {
+          toValue: newExpanded ? 1 : 0,
+          duration: 0, // Immediate
+          useNativeDriver: false,
+        }).start();
       } else {
         // Start performance profiling
         startAnimationProfiling(animationId, theme.animations.durations.normal);

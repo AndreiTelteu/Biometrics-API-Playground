@@ -138,14 +138,24 @@ const StatusLog: React.FC<StatusLogProps> = ({
       
       timeoutRefs.current.add(scrollTimeoutId);
     } else {
-      // Existing logs, make sure they're visible
+      // Existing logs, make sure they're visible using native driver
       logs.forEach((log) => {
         const fadeAnim = fadeAnims.current.get(log.id);
         const scaleAnim = scaleAnims.current.get(log.id);
         
         if (fadeAnim && scaleAnim) {
-          fadeAnim.setValue(1);
-          scaleAnim.setValue(1);
+          Animated.parallel([
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 0, // Immediate
+              useNativeDriver: true,
+            }),
+            Animated.timing(scaleAnim, {
+              toValue: 1,
+              duration: 0, // Immediate
+              useNativeDriver: true,
+            }),
+          ]).start();
         }
       });
     }

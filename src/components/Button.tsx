@@ -112,9 +112,20 @@ export const Button: React.FC<ButtonProps> = ({
       cleanupAnimation(currentAnimation.current);
       
       if (reducedMotion) {
-        // Immediate feedback for reduced motion
-        scaleAnimation.setValue(0.95);
-        opacityAnimation.setValue(0.8);
+        // Immediate feedback for reduced motion using native driver
+        currentAnimation.current = Animated.parallel([
+          createOptimizedTiming(scaleAnimation, {
+            toValue: 0.95,
+            duration: 0, // Immediate
+            useNativeDriver: true,
+          }),
+          createOptimizedTiming(opacityAnimation, {
+            toValue: 0.8,
+            duration: 0, // Immediate
+            useNativeDriver: true,
+          }),
+        ]);
+        currentAnimation.current.start();
       } else {
         // Use InteractionManager for smooth animations
         InteractionManager.runAfterInteractions(() => {
@@ -143,9 +154,20 @@ export const Button: React.FC<ButtonProps> = ({
       cleanupAnimation(currentAnimation.current);
       
       if (reducedMotion) {
-        // Immediate reset for reduced motion
-        scaleAnimation.setValue(1);
-        opacityAnimation.setValue(1);
+        // Immediate reset for reduced motion using native driver
+        currentAnimation.current = Animated.parallel([
+          createOptimizedTiming(scaleAnimation, {
+            toValue: 1,
+            duration: 0, // Immediate
+            useNativeDriver: true,
+          }),
+          createOptimizedTiming(opacityAnimation, {
+            toValue: 1,
+            duration: 0, // Immediate
+            useNativeDriver: true,
+          }),
+        ]);
+        currentAnimation.current.start();
       } else {
         // Use InteractionManager for smooth animations
         InteractionManager.runAfterInteractions(() => {

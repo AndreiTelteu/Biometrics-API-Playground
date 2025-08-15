@@ -106,10 +106,18 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   // Initialize error animations based on initial error state
   useEffect(() => {
     if (enrollUrlError) {
-      enrollErrorAnimation.setValue(1);
+      Animated.timing(enrollErrorAnimation, {
+        toValue: 1,
+        duration: 0, // Immediate
+        useNativeDriver: false,
+      }).start();
     }
     if (validateUrlError) {
-      validateErrorAnimation.setValue(1);
+      Animated.timing(validateErrorAnimation, {
+        toValue: 1,
+        duration: 0, // Immediate
+        useNativeDriver: false,
+      }).start();
     }
   }, []);
 

@@ -101,12 +101,18 @@ const SpinnerIndicator: React.FC<{
   
   useEffect(() => {
     const spin = () => {
-      spinAnimation.setValue(0);
       Animated.timing(spinAnimation, {
         toValue: 1,
         duration: 1000,
         useNativeDriver: true,
-      }).start(() => spin());
+      }).start(() => {
+        // Reset to 0 using native driver for continuous loop
+        Animated.timing(spinAnimation, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }).start(() => spin());
+      });
     };
     
     spin();

@@ -72,8 +72,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     
     if (await reducedMotion) {
       // Immediate theme change for reduced motion
-      themeTransition.setValue(newMode === 'dark' ? 1 : 0);
-      setIsTransitioning(false);
+      Animated.timing(themeTransition, {
+        toValue: newMode === 'dark' ? 1 : 0,
+        duration: 0, // Immediate
+        useNativeDriver: false,
+      }).start(() => {
+        setIsTransitioning(false);
+      });
     } else {
       // Use InteractionManager for smooth theme transitions
       InteractionManager.runAfterInteractions(() => {
@@ -98,13 +103,21 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         const preferredTheme = await loadThemePreference();
         setThemeMode(preferredTheme);
         // Set initial animation value without animation
-        themeTransition.setValue(preferredTheme === 'dark' ? 1 : 0);
+        Animated.timing(themeTransition, {
+          toValue: preferredTheme === 'dark' ? 1 : 0,
+          duration: 0, // Immediate
+          useNativeDriver: false,
+        }).start();
       } catch (error) {
         console.warn('Failed to initialize theme:', error);
         // Fallback to system preference or light theme
         const fallbackTheme = systemColorScheme === 'dark' ? 'dark' : 'light';
         setThemeMode(fallbackTheme);
-        themeTransition.setValue(fallbackTheme === 'dark' ? 1 : 0);
+        Animated.timing(themeTransition, {
+          toValue: fallbackTheme === 'dark' ? 1 : 0,
+          duration: 0, // Immediate
+          useNativeDriver: false,
+        }).start();
       } finally {
         setIsLoading(false);
       }
