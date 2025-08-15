@@ -2,7 +2,7 @@
  * BiometricActions Component
  * 
  * Container component that manages biometric action buttons including
- * EnrollButton, ValidateButton, and DeleteKeysButton with proper state management.
+ * EnrollButton, ValidateButton, and DeleteKeysButton with modern design system styling.
  */
 
 import React from 'react';
@@ -11,6 +11,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { BiometricActionsProps } from '../types';
+import { useTheme } from '../theme';
 import EnrollButton from './EnrollButton';
 import ValidateButton from './ValidateButton';
 import DeleteKeysButton from './DeleteKeysButton';
@@ -24,6 +25,9 @@ const BiometricActions: React.FC<BiometricActionsProps> = ({
   biometricAvailable,
   endpointsConfigured,
 }) => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.container}>
       <View style={styles.buttonContainer}>
@@ -50,15 +54,18 @@ const BiometricActions: React.FC<BiometricActionsProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginVertical: 8,
+    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    marginVertical: theme.spacing.md,
+    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   buttonContainer: {
-    gap: 12,
+    gap: theme.spacing.md,
   },
 });
 

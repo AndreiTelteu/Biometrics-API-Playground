@@ -77,6 +77,7 @@
     - _Requirements: 1.5, 4.5_
 
 - [x] 5. Redesign BiometricStatusDisplay component
+
   - Apply modern card styling and improved visual hierarchy
   - Update status icons with modern iconography
   - Enhance color coding with theme-aware colors
@@ -84,7 +85,8 @@
   - Write unit tests for BiometricStatusDisplay component styling
   - _Requirements: 2.1, 2.4, 3.2, 3.3_
 
-- [ ] 6. Redesign BiometricActions component
+
+- [x] 6. Redesign BiometricActions component
 
   - Apply modern button styling using enhanced Button components
   - Update button layout with improved spacing

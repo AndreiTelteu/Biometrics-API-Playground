@@ -2,17 +2,18 @@
  * EnrollButton Component
  * 
  * Button component for biometric enrollment with loading states and proper
- * visual feedback for button interactions.
+ * visual feedback using the enhanced Button component.
  */
 
 import React, { useState } from 'react';
 import {
-  TouchableOpacity,
-  Text,
-  ActivityIndicator,
-  StyleSheet,
   View,
+  Text,
+  StyleSheet,
+  Animated,
 } from 'react-native';
+import { useTheme } from '../theme';
+import Button from './Button';
 
 interface EnrollButtonProps {
   onPress: () => Promise<void>;
@@ -25,10 +26,27 @@ const EnrollButton: React.FC<EnrollButtonProps> = ({
   disabled,
   biometricAvailable,
 }) => {
+  const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
+  const [scaleAnim] = useState(new Animated.Value(1));
+  const styles = createStyles(theme);
 
   const handlePress = async () => {
     if (disabled || !biometricAvailable || isLoading) return;
+
+    // Press animation
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     setIsLoading(true);
     try {
@@ -38,107 +56,55 @@ const EnrollButton: React.FC<EnrollButtonProps> = ({
     }
   };
 
-  const getButtonStyle = () => {
-    if (disabled || !biometricAvailable) {
-      return [styles.button, styles.buttonDisabled];
-    }
-    return [styles.button, styles.buttonPrimary];
-  };
-
-  const getButtonText = () => {
+  const getButtonTitle = () => {
     if (isLoading) return 'Enrolling...';
     if (!biometricAvailable) return 'Biometrics Not Available';
     return 'Enroll Biometric';
   };
 
-  const getStatusIcon = () => {
-    if (isLoading) return null;
-    if (!biometricAvailable) return '❌';
-    return '🔐';
+  const getHelpText = () => {
+    if (!biometricAvailable) {
+      return 'Biometric authentication is not available on this device';
+    }
+    return null;
   };
 
+  const isButtonDisabled = disabled || !biometricAvailable;
+
   return (
-    <TouchableOpacity
-      style={getButtonStyle()}
-      onPress={handlePress}
-      disabled={disabled || isLoading}
-      testID="enroll-button"
-      activeOpacity={0.7}
-    >
-      <View style={styles.buttonContent}>
-        {isLoading ? (
-          <ActivityIndicator
-            size="small"
-            color="#fff"
-            style={styles.loadingIndicator}
-          />
-        ) : (
-          <Text style={styles.buttonIcon}>{getStatusIcon()}</Text>
-        )}
-        <Text style={[
-          styles.buttonText,
-          disabled ? styles.buttonTextDisabled : styles.buttonTextEnabled
-        ]}>
-          {getButtonText()}
-        </Text>
-      </View>
+    <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
+      <Button
+        title={getButtonTitle()}
+        variant="primary"
+        size="lg"
+        disabled={isButtonDisabled}
+        loading={isLoading}
+        onPress={handlePress}
+        testID="enroll-button"
+        fullWidth
+        activeOpacity={0.8}
+      />
       
-      {!biometricAvailable && (
+      {getHelpText() && (
         <Text style={styles.helpText}>
-          Biometric authentication is not available on this device
+          {getHelpText()}
         </Text>
       )}
-    </TouchableOpacity>
+    </Animated.View>
   );
 };
 
-const styles = StyleSheet.create({
-  button: {
-    borderRadius: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 56,
-    borderWidth: 1,
-  },
-  buttonPrimary: {
-    backgroundColor: '#007bff',
-    borderColor: '#007bff',
-  },
-  buttonDisabled: {
-    backgroundColor: '#6c757d',
-    borderColor: '#6c757d',
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  buttonTextEnabled: {
-    color: '#fff',
-  },
-  buttonTextDisabled: {
-    color: '#fff',
-  },
-  loadingIndicator: {
-    marginRight: 8,
+const createStyles = (theme: any) => StyleSheet.create({
+  container: {
+    width: '100%',
   },
   helpText: {
-    fontSize: 12,
-    color: '#6c757d',
+    fontSize: theme.typography.sizes.xs,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: theme.spacing.xs,
     fontStyle: 'italic',
+    lineHeight: theme.typography.lineHeights.normal * theme.typography.sizes.xs,
   },
 });
 

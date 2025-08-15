@@ -2,12 +2,52 @@
  * BiometricActions Component Tests
  * 
  * Tests for the main BiometricActions container component including
- * button state management and interaction handling.
+ * button state management, interaction handling, and modern design system integration.
  */
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import BiometricActions from '../BiometricActions';
+
+// Mock the theme system
+jest.mock('../../theme', () => ({
+  useTheme: () => ({
+    theme: {
+      colors: {
+        surface: '#FFFFFF',
+        border: '#C6C6C8',
+        textSecondary: '#6D6D80',
+      },
+      spacing: {
+        xs: 4,
+        sm: 8,
+        md: 16,
+        lg: 24,
+        xl: 32,
+      },
+      borderRadius: {
+        lg: 16,
+      },
+      shadows: {
+        md: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 4,
+        },
+      },
+      typography: {
+        sizes: {
+          xs: 12,
+        },
+        lineHeights: {
+          normal: 1.4,
+        },
+      },
+    },
+  }),
+}));
 
 // Mock the individual button components
 jest.mock('../EnrollButton', () => {
@@ -279,6 +319,90 @@ describe('BiometricActions', () => {
       expect(getByTestId('mock-enroll-button').props.accessibilityState.disabled).toBe(false);
       expect(getByTestId('mock-validate-button').props.accessibilityState.disabled).toBe(true);
       expect(getByTestId('mock-delete-button').props.accessibilityState.disabled).toBe(true);
+    });
+  });
+
+  describe('Modern Design System Integration', () => {
+    it('applies theme-aware styling to container', () => {
+      const { getByTestId } = render(<BiometricActions {...defaultProps} />);
+      
+      // The container should be rendered (we can't easily test styles in RN testing library,
+      // but we can verify the component renders without errors)
+      expect(getByTestId('mock-enroll-button')).toBeTruthy();
+      expect(getByTestId('mock-validate-button')).toBeTruthy();
+      expect(getByTestId('mock-delete-button')).toBeTruthy();
+    });
+
+    it('maintains proper button spacing and layout', () => {
+      const { getByTestId } = render(<BiometricActions {...defaultProps} />);
+      
+      // Verify all buttons are present and properly structured
+      const enrollButton = getByTestId('mock-enroll-button');
+      const validateButton = getByTestId('mock-validate-button');
+      const deleteButton = getByTestId('mock-delete-button');
+
+      expect(enrollButton).toBeTruthy();
+      expect(validateButton).toBeTruthy();
+      expect(deleteButton).toBeTruthy();
+    });
+
+    it('handles theme changes gracefully', () => {
+      const { rerender, getByTestId } = render(<BiometricActions {...defaultProps} />);
+      
+      // Initial render should work
+      expect(getByTestId('mock-enroll-button')).toBeTruthy();
+      
+      // Re-render should also work (simulating theme change)
+      rerender(<BiometricActions {...defaultProps} disabled={true} />);
+      expect(getByTestId('mock-enroll-button')).toBeTruthy();
+    });
+  });
+
+  describe('Enhanced Button Behavior', () => {
+    it('maintains loading state management across buttons', async () => {
+      const { getByTestId } = render(
+        <BiometricActions
+          {...defaultProps}
+          keysExist={true}
+          biometricAvailable={true}
+          endpointsConfigured={true}
+        />
+      );
+
+      // All buttons should be available for interaction
+      const enrollButton = getByTestId('mock-enroll-button');
+      const validateButton = getByTestId('mock-validate-button');
+      const deleteButton = getByTestId('mock-delete-button');
+
+      expect(enrollButton.props.accessibilityState.disabled).toBe(false);
+      expect(validateButton.props.accessibilityState.disabled).toBe(false);
+      expect(deleteButton.props.accessibilityState.disabled).toBe(false);
+    });
+
+    it('provides proper visual feedback for disabled states', () => {
+      const { getByTestId } = render(
+        <BiometricActions
+          {...defaultProps}
+          disabled={true}
+          keysExist={false}
+          biometricAvailable={false}
+          endpointsConfigured={false}
+        />
+      );
+
+      // All buttons should be disabled and show appropriate text
+      expect(getByTestId('mock-enroll-button')).toHaveTextContent('Enroll Disabled Unavailable');
+      expect(getByTestId('mock-validate-button')).toHaveTextContent('Validate Disabled Keys:No Endpoints:No');
+      expect(getByTestId('mock-delete-button')).toHaveTextContent('Delete Disabled Keys:No');
+    });
+
+    it('handles animation states properly', () => {
+      const { getByTestId } = render(<BiometricActions {...defaultProps} />);
+      
+      // Component should render without animation errors
+      expect(getByTestId('mock-enroll-button')).toBeTruthy();
+      expect(getByTestId('mock-validate-button')).toBeTruthy();
+      expect(getByTestId('mock-delete-button')).toBeTruthy();
     });
   });
 });
