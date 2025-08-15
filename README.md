@@ -2,7 +2,7 @@
 
 Biometric Playground is an open‑source demo app that helps developers and curious users explore Android's BiometricPrompt and Keystore‑backed public‑key authentication. Enroll a key with your device biometrics, validate with a secure challenge, inspect status logs, and clean up keys — all in one place.
 
-<a href="https://play.google.com/store/apps/details?id=com.biometricplayground">
+<a href="https://play.google.com/store/apps/details?id=com.biometricplayground" target="_blank">
 <img src="./images/googleplay.svg" alt="Get it on Google Play" width="200">
 </a>
 
