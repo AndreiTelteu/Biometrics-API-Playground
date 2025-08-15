@@ -76,7 +76,7 @@ function AppContent(): React.JSX.Element {
    */
   const initializeBiometrics = useCallback(async () => {
     try {
-      logInfo('status', 'Initializing biometric sensors...');
+      // logInfo('status', 'Initializing biometric sensors...');
 
       // Check biometric availability
       const status = await biometricService.checkBiometricAvailability();
@@ -140,7 +140,7 @@ function AppContent(): React.JSX.Element {
           setValidateEndpoint(config);
         }
 
-        logInfo('status', `${type} endpoint configuration saved`);
+        // logInfo('status', `${type} endpoint configuration saved`);
       } catch (error) {
         logError(
           'status',
@@ -156,85 +156,78 @@ function AppContent(): React.JSX.Element {
    * Handle enrollment flow with backend integration
    */
   const handleEnroll = useCallback(async () => {
-    await executeWithLogging(
-      'enroll',
-      'Starting biometric enrollment...',
-      async () => {
-        // Validate biometric availability first
-        if (!biometricStatus.available) {
-          throw new Error(
-            `Biometric sensors not available: ${
-              biometricStatus.error || 'Unknown reason'
-            }`,
-          );
-        }
+    // Validate biometric availability first
+    if (!biometricStatus.available) {
+      throw new Error(
+        `Biometric sensors not available: ${
+          biometricStatus.error || 'Unknown reason'
+        }`,
+      );
+    }
 
-        // Create biometric keys with user authentication
-        logInfo('enroll', 'Creating biometric keys...');
-        const createKeysResult = await biometricService.createKeys(
-          'Authenticate to create biometric keys for enrollment',
-        );
-
-        if (!createKeysResult.success) {
-          throw new Error(`Key creation failed: ${createKeysResult.message}`);
-        }
-
-        const publicKey = createKeysResult.data.publicKey;
-        logSuccess(
-          'enroll',
-          `Biometric keys created successfully. Public key: ${publicKey.substring(
-            0,
-            50,
-          )}...`,
-        );
-
-        // Update keys exist status
-        setKeysExist(true);
-
-        // Send public key to backend if endpoint is configured
-        if (enrollEndpoint.url) {
-          logInfo(
-            'enroll',
-            `Sending public key to enrollment endpoint: ${enrollEndpoint.url}`,
-          );
-
-          const enrollResult = await biometricAPIService.enrollPublicKey(
-            enrollEndpoint,
-            publicKey,
-          );
-
-          if (!enrollResult.success) {
-            // Reset keys exist status on backend failure
-            setKeysExist(false);
-            throw new Error(
-              `Backend enrollment failed: ${enrollResult.message}`,
-            );
-          }
-
-          logSuccess(
-            'enroll',
-            'Public key successfully registered with backend',
-          );
-
-          return {
-            publicKey,
-            backendResponse: enrollResult.data,
-            endpoint: enrollEndpoint.url,
-            method: enrollEndpoint.method,
-          };
-        } else {
-          logInfo(
-            'enroll',
-            'No enrollment endpoint configured - keys created locally only',
-          );
-          return {
-            publicKey,
-            localOnly: true,
-          };
-        }
-      },
-      'Enrollment completed successfully',
+    // Create biometric keys with user authentication
+    logInfo('enroll', 'Creating biometric keys...');
+    const createKeysResult = await biometricService.createKeys(
+      'Authenticate to create biometric keys for enrollment',
     );
+
+    if (!createKeysResult.success) {
+      throw new Error(`Key creation failed: ${createKeysResult.message}`);
+    }
+
+    const publicKey = createKeysResult.data.publicKey;
+    logSuccess(
+      'enroll',
+      `Biometric keys created successfully. Public key: ${publicKey.substring(
+        0,
+        50,
+      )}...`,
+    );
+
+    // Update keys exist status
+    setKeysExist(true);
+
+    // Send public key to backend if endpoint is configured
+    if (enrollEndpoint.url) {
+      logInfo(
+        'enroll',
+        `Sending public key to enrollment endpoint: ${enrollEndpoint.url}`,
+      );
+
+      const enrollResult = await biometricAPIService.enrollPublicKey(
+        enrollEndpoint,
+        publicKey,
+      );
+
+      if (!enrollResult.success) {
+        // Reset keys exist status on backend failure
+        setKeysExist(false);
+        throw new Error(
+          `Backend enrollment failed: ${enrollResult.message}`,
+        );
+      }
+
+      logSuccess(
+        'enroll',
+        'Public key successfully registered with backend',
+      );
+
+      return {
+        publicKey,
+        backendResponse: enrollResult.data,
+        endpoint: enrollEndpoint.url,
+        method: enrollEndpoint.method,
+      };
+    } else {
+      logInfo(
+        'enroll',
+        'No enrollment endpoint configured - keys created locally only',
+      );
+      return {
+        publicKey,
+        localOnly: true,
+      };
+    }
   }, [
     executeWithLogging,
     enrollEndpoint,

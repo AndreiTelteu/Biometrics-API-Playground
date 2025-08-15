@@ -64,7 +64,7 @@ describe('useStatusLogger Hook', () => {
       const { result } = renderHook(() => useStatusLogger());
       
       act(() => {
-        result.current.logInfo('status', 'Status check completed');
+        // result.current.logInfo('status', 'Status check completed');
       });
       
       expect(result.current.logs).toHaveLength(1);

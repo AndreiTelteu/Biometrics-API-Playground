@@ -321,10 +321,25 @@ const StatusLog: React.FC<StatusLogProps> = ({
         },
       ]}
     >
-      <Text style={[styles.title, { color: theme.colors.text }]}>
-        Status Log
-      </Text>
-      {renderCurrentOperation()}
+      <View style={{ flexDirection:'row', alignItems: 'flex-end', paddingBottom: 16, gap: 10 }}>
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          Status Log
+        </Text>
+        {isLoading && (
+          <>
+            <ActivityIndicator
+              size="small"
+              color={theme.colors.info}
+            />
+            <Animated.Text
+              style={[styles.currentOperationTitle, { color: theme.colors.info }]}
+            >
+              Operation in progress...
+            </Animated.Text>
+          </>
+        )}
+      </View>
+      {/* {renderCurrentOperation()} */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
@@ -357,7 +372,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    marginBottom: 16,
     letterSpacing: -0.5,
   },
   currentOperation: {
