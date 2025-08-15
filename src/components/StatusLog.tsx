@@ -130,9 +130,9 @@ const StatusLog: React.FC<StatusLogProps> = ({
         }
       });
 
-      // Auto-scroll to show new entries
+      // Auto-scroll to show new entries (scroll to top since logs are reversed)
       const scrollTimeoutId = setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         timeoutRefs.current.delete(scrollTimeoutId);
       }, 150);
       
@@ -311,6 +311,9 @@ const StatusLog: React.FC<StatusLogProps> = ({
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
       >
         {logs.length === 0 ? (
           <Text style={[styles.emptyMessage, { color: theme.colors.textSecondary }]}>
@@ -387,7 +390,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    maxHeight: 400,
   },
   scrollContent: {
     paddingBottom: 16,
