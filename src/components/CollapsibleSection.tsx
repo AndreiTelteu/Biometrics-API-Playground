@@ -1,6 +1,7 @@
 /**
  * CollapsibleSection Component
  * A reusable collapsible section with smooth animations and state persistence
+ * Optimized for performance with hardware acceleration and reduced motion support
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -13,9 +14,19 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  InteractionManager,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../theme';
+import {
+  createOptimizedTiming,
+  createAccessibleAnimation,
+  isReducedMotionEnabled,
+  subscribeToReducedMotion,
+  startAnimationProfiling,
+  endAnimationProfiling,
+  cleanupAnimation,
+} from '../utils/animationUtils';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -67,8 +78,26 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   const { theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [isLoading, setIsLoading] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const rotationAnim = useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
+  const heightAnim = useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
+  const opacityAnim = useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
   const storageKey = `${STORAGE_KEY_PREFIX}${id}`;
+  const currentAnimation = useRef<Animated.CompositeAnimation | null>(null);
+
+  // Check reduced motion preference
+  useEffect(() => {
+    const checkReducedMotion = async () => {
+      const isEnabled = await isReducedMotionEnabled();
+      setReducedMotion(isEnabled);
+    };
+
+    checkReducedMotion();
+
+    // Subscribe to reduced motion changes
+    const unsubscribe = subscribeToReducedMotion(setReducedMotion);
+    return unsubscribe;
+  }, []);
 
   // Load saved state from AsyncStorage
   useEffect(() => {
@@ -78,7 +107,10 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         if (savedState !== null) {
           const expanded = JSON.parse(savedState);
           setIsExpanded(expanded);
+          // Set all animation values immediately without animation
           rotationAnim.setValue(expanded ? 1 : 0);
+          heightAnim.setValue(expanded ? 1 : 0);
+          opacityAnim.setValue(expanded ? 1 : 0);
         }
       } catch (error) {
         console.warn('Failed to load collapsible section state:', error);
@@ -88,7 +120,7 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
     };
 
     loadSavedState();
-  }, [storageKey, rotationAnim]);
+  }, [storageKey, rotationAnim, heightAnim, opacityAnim]);
 
   // Save state to AsyncStorage
   const saveState = async (expanded: boolean) => {
@@ -99,46 +131,99 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
     }
   };
 
-  // Handle toggle with animation
+  // Handle toggle with optimized animation
   const handleToggle = () => {
     const newExpanded = !isExpanded;
+    const animationId = `collapsible-${id}-${Date.now()}`;
     
-    // Configure layout animation (with fallback for testing)
-    try {
-      if (LayoutAnimation && LayoutAnimation.configureNext) {
-        LayoutAnimation.configureNext({
-          duration: theme.animations.durations.normal,
-          create: {
-            type: LayoutAnimation.Types.easeInEaseOut,
-            property: LayoutAnimation.Properties.opacity,
-          },
-          update: {
-            type: LayoutAnimation.Types.easeInEaseOut,
-            property: LayoutAnimation.Properties.scaleXY,
-          },
+    // Clean up any existing animation
+    cleanupAnimation(currentAnimation.current);
+    
+    // Use InteractionManager to ensure smooth animations
+    InteractionManager.runAfterInteractions(() => {
+      if (reducedMotion) {
+        // Immediate state change for reduced motion
+        rotationAnim.setValue(newExpanded ? 1 : 0);
+        heightAnim.setValue(newExpanded ? 1 : 0);
+        opacityAnim.setValue(newExpanded ? 1 : 0);
+      } else {
+        // Start performance profiling
+        startAnimationProfiling(animationId, theme.animations.durations.normal);
+        
+        // Configure optimized layout animation (with fallback for testing)
+        try {
+          if (LayoutAnimation && LayoutAnimation.configureNext && !reducedMotion) {
+            LayoutAnimation.configureNext({
+              duration: theme.animations.durations.normal,
+              create: {
+                type: LayoutAnimation.Types.easeInEaseOut,
+                property: LayoutAnimation.Properties.opacity,
+              },
+              update: {
+                type: LayoutAnimation.Types.easeInEaseOut,
+                property: LayoutAnimation.Properties.scaleXY,
+              },
+            });
+          }
+        } catch (error) {
+          // Silently handle LayoutAnimation errors (e.g., in testing environment)
+        }
+
+        // Create optimized parallel animations with hardware acceleration
+        currentAnimation.current = Animated.parallel([
+          createOptimizedTiming(rotationAnim, {
+            toValue: newExpanded ? 1 : 0,
+            duration: theme.animations.durations.normal,
+            useNativeDriver: true, // Hardware accelerated
+          }),
+          createOptimizedTiming(heightAnim, {
+            toValue: newExpanded ? 1 : 0,
+            duration: theme.animations.durations.normal,
+            useNativeDriver: false, // Height changes require layout
+          }),
+          createOptimizedTiming(opacityAnim, {
+            toValue: newExpanded ? 1 : 0,
+            duration: theme.animations.durations.fast,
+            useNativeDriver: true, // Hardware accelerated
+          }),
+        ]);
+
+        currentAnimation.current.start((finished) => {
+          if (finished) {
+            endAnimationProfiling(animationId);
+          }
+          currentAnimation.current = null;
         });
       }
-    } catch (error) {
-      // Silently handle LayoutAnimation errors (e.g., in testing environment)
-    }
-
-    // Animate rotation
-    Animated.timing(rotationAnim, {
-      toValue: newExpanded ? 1 : 0,
-      duration: theme.animations.durations.normal,
-      useNativeDriver: true,
-    }).start();
+    });
 
     setIsExpanded(newExpanded);
     saveState(newExpanded);
     onToggle?.(newExpanded);
   };
 
-  // Calculate rotation for chevron
+  // Calculate interpolated values for animations
   const rotation = rotationAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
   });
+
+  const contentHeight = heightAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
+  const contentOpacity = opacityAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
+  // Cleanup animations on unmount
+  useEffect(() => {
+    return () => {
+      cleanupAnimation(currentAnimation.current);
+    };
+  }, []);
 
   const styles = createStyles(theme, hasErrors);
 
@@ -172,9 +257,18 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
       </TouchableOpacity>
       
       {isExpanded && (
-        <View style={styles.content} testID={testID ? `${testID}-content` : undefined}>
+        <Animated.View 
+          style={[
+            styles.content, 
+            {
+              opacity: contentOpacity,
+              transform: [{ scaleY: contentHeight }],
+            }
+          ]} 
+          testID={testID ? `${testID}-content` : undefined}
+        >
           {children}
-        </View>
+        </Animated.View>
       )}
     </View>
   );

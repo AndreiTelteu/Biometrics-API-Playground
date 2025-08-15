@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, ReactNode, useRef } from 'react';
-import { useColorScheme, Animated } from 'react-native';
+import { useColorScheme, Animated, InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContextProvider, ThemeContextType } from './ThemeContext';
 import { Theme, ThemeMode, lightTheme, darkTheme } from './theme';
@@ -59,20 +59,34 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     await saveThemePreference(mode);
   }, [saveThemePreference]);
 
-  // Toggle between light and dark themes with animation
+  // Toggle between light and dark themes with optimized animation
   const toggleTheme = useCallback(async (): Promise<void> => {
     const newMode: ThemeMode = themeMode === 'light' ? 'dark' : 'light';
     
     setIsTransitioning(true);
     
-    // Animate theme transition
-    Animated.timing(themeTransition, {
-      toValue: newMode === 'dark' ? 1 : 0,
-      duration: lightTheme.animations.durations.normal,
-      useNativeDriver: false,
-    }).start(() => {
+    // Check for reduced motion preference
+    const reducedMotion = await import('../utils/animationUtils').then(utils => 
+      utils.isReducedMotionEnabled()
+    );
+    
+    if (await reducedMotion) {
+      // Immediate theme change for reduced motion
+      themeTransition.setValue(newMode === 'dark' ? 1 : 0);
       setIsTransitioning(false);
-    });
+    } else {
+      // Use InteractionManager for smooth theme transitions
+      InteractionManager.runAfterInteractions(() => {
+        // Animate theme transition with hardware acceleration where possible
+        Animated.timing(themeTransition, {
+          toValue: newMode === 'dark' ? 1 : 0,
+          duration: lightTheme.animations.durations.normal,
+          useNativeDriver: false, // Color interpolation requires layout thread
+        }).start(() => {
+          setIsTransitioning(false);
+        });
+      });
+    }
     
     await setTheme(newMode);
   }, [themeMode, setTheme, themeTransition]);

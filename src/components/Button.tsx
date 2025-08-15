@@ -1,9 +1,10 @@
 /**
  * Button Component
- * Enhanced button component with modern styling, variants, and animations
+ * Enhanced button component with modern styling, variants, and optimized animations
+ * Includes hardware acceleration and reduced motion support
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -12,8 +13,15 @@ import {
   TextStyle,
   ActivityIndicator,
   Animated,
+  InteractionManager,
 } from 'react-native';
 import { useTheme } from '../theme';
+import {
+  createOptimizedTiming,
+  isReducedMotionEnabled,
+  subscribeToReducedMotion,
+  cleanupAnimation,
+} from '../utils/animationUtils';
 
 export interface ButtonProps {
   /**
@@ -76,45 +84,100 @@ export const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
 }) => {
   const { theme } = useTheme();
+  const [reducedMotion, setReducedMotion] = useState(false);
   const styles = createStyles(theme, variant, size, disabled, loading, fullWidth);
   
-  // Animation values for press feedback
+  // Animation values for press feedback with hardware acceleration
   const scaleAnimation = useRef(new Animated.Value(1)).current;
   const opacityAnimation = useRef(new Animated.Value(1)).current;
+  const currentAnimation = useRef<Animated.CompositeAnimation | null>(null);
+
+  // Check reduced motion preference
+  useEffect(() => {
+    const checkReducedMotion = async () => {
+      const isEnabled = await isReducedMotionEnabled();
+      setReducedMotion(isEnabled);
+    };
+
+    checkReducedMotion();
+
+    // Subscribe to reduced motion changes
+    const unsubscribe = subscribeToReducedMotion(setReducedMotion);
+    return unsubscribe;
+  }, []);
 
   const handlePressIn = () => {
     if (!disabled && !loading) {
-      Animated.parallel([
-        Animated.timing(scaleAnimation, {
-          toValue: 0.95,
-          duration: theme.animations.durations.fast,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnimation, {
-          toValue: 0.8,
-          duration: theme.animations.durations.fast,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Clean up any existing animation
+      cleanupAnimation(currentAnimation.current);
+      
+      if (reducedMotion) {
+        // Immediate feedback for reduced motion
+        scaleAnimation.setValue(0.95);
+        opacityAnimation.setValue(0.8);
+      } else {
+        // Use InteractionManager for smooth animations
+        InteractionManager.runAfterInteractions(() => {
+          currentAnimation.current = Animated.parallel([
+            createOptimizedTiming(scaleAnimation, {
+              toValue: 0.95,
+              duration: theme.animations.durations.fast,
+              useNativeDriver: true, // Hardware accelerated
+            }),
+            createOptimizedTiming(opacityAnimation, {
+              toValue: 0.8,
+              duration: theme.animations.durations.fast,
+              useNativeDriver: true, // Hardware accelerated
+            }),
+          ]);
+          
+          currentAnimation.current.start();
+        });
+      }
     }
   };
 
   const handlePressOut = () => {
     if (!disabled && !loading) {
-      Animated.parallel([
-        Animated.timing(scaleAnimation, {
-          toValue: 1,
-          duration: theme.animations.durations.fast,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnimation, {
-          toValue: 1,
-          duration: theme.animations.durations.fast,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Clean up any existing animation
+      cleanupAnimation(currentAnimation.current);
+      
+      if (reducedMotion) {
+        // Immediate reset for reduced motion
+        scaleAnimation.setValue(1);
+        opacityAnimation.setValue(1);
+      } else {
+        // Use InteractionManager for smooth animations
+        InteractionManager.runAfterInteractions(() => {
+          currentAnimation.current = Animated.parallel([
+            createOptimizedTiming(scaleAnimation, {
+              toValue: 1,
+              duration: theme.animations.durations.fast,
+              useNativeDriver: true, // Hardware accelerated
+            }),
+            createOptimizedTiming(opacityAnimation, {
+              toValue: 1,
+              duration: theme.animations.durations.fast,
+              useNativeDriver: true, // Hardware accelerated
+            }),
+          ]);
+          
+          currentAnimation.current.start((finished) => {
+            if (finished) {
+              currentAnimation.current = null;
+            }
+          });
+        });
+      }
     }
   };
+
+  // Cleanup animations on unmount
+  useEffect(() => {
+    return () => {
+      cleanupAnimation(currentAnimation.current);
+    };
+  }, []);
 
   const handlePress = () => {
     if (!disabled && !loading && onPress) {
