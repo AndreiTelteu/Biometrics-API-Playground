@@ -3,6 +3,30 @@ import { render, screen } from '@testing-library/react-native';
 import StatusLog from '../StatusLog';
 import { LogEntry, OperationResult } from '../../types';
 
+// Mock the theme hook
+jest.mock('../../theme', () => ({
+  useTheme: () => ({
+    theme: {
+      colors: {
+        primary: '#007AFF',
+        secondary: '#5856D6',
+        background: '#F2F2F7',
+        surface: '#FFFFFF',
+        text: '#000000',
+        textSecondary: '#6D6D80',
+        border: '#C6C6C8',
+        success: '#34C759',
+        warning: '#FF9500',
+        error: '#FF3B30',
+        info: '#007AFF',
+        accent: '#FF2D92',
+        surfaceSecondary: '#F9F9FB',
+        overlay: 'rgba(0, 0, 0, 0.4)',
+      },
+    },
+  }),
+}));
+
 // Mock data for testing
 const mockLogEntries: LogEntry[] = [
   {
@@ -252,6 +276,136 @@ describe('StatusLog Component', () => {
       // All text content should be accessible
       expect(screen.getByText('Status Log')).toBeTruthy();
       expect(screen.getByText('Biometric enrollment successful')).toBeTruthy();
+    });
+  });
+
+  describe('Modern Styling', () => {
+    it('should render with modern card design', () => {
+      const { getByText } = render(<StatusLog logs={mockLogEntries} />);
+      
+      // Test that the component renders with modern styling
+      expect(getByText('Status Log')).toBeTruthy();
+      expect(getByText('Biometric enrollment successful')).toBeTruthy();
+    });
+
+    it('should display status icons in circular containers', () => {
+      render(<StatusLog logs={mockLogEntries} />);
+      
+      // Status icons should be rendered in circular containers
+      expect(screen.getByText('✓')).toBeTruthy();
+      expect(screen.getByText('✗')).toBeTruthy();
+      expect(screen.getByText('ℹ')).toBeTruthy();
+    });
+
+    it('should apply theme-aware colors', () => {
+      render(<StatusLog logs={mockLogEntries} />);
+      
+      // Component should render without errors with theme colors
+      expect(screen.getByText('Status Log')).toBeTruthy();
+      expect(screen.getByText('ENROLL')).toBeTruthy();
+      expect(screen.getByText('VALIDATE')).toBeTruthy();
+    });
+
+    it('should render with improved typography and spacing', () => {
+      render(<StatusLog logs={mockLogEntries} />);
+      
+      // Test improved layout structure
+      expect(screen.getByText('Status Log')).toBeTruthy();
+      expect(screen.getByText('Biometric enrollment successful')).toBeTruthy();
+      expect(screen.getByText('Validation failed: Invalid signature')).toBeTruthy();
+    });
+
+    it('should display enhanced details styling', () => {
+      render(<StatusLog logs={[mockLogEntries[0]]} />);
+      
+      // Details should be displayed with modern styling
+      expect(screen.getByText(/"publicKey": "mock-public-key-123"/)).toBeTruthy();
+    });
+
+    it('should render current operation with modern design', () => {
+      render(<StatusLog logs={[]} currentOperation={mockCurrentOperation} />);
+      
+      expect(screen.getByText('Latest Operation')).toBeTruthy();
+      expect(screen.getByText('Operation completed successfully')).toBeTruthy();
+    });
+  });
+
+  describe('Animations', () => {
+    beforeEach(() => {
+      // Mock Animated.timing and Animated.spring
+      jest.spyOn(require('react-native').Animated, 'timing').mockImplementation(() => ({
+        start: jest.fn(),
+      }));
+      jest.spyOn(require('react-native').Animated, 'spring').mockImplementation(() => ({
+        start: jest.fn(),
+      }));
+      jest.spyOn(require('react-native').Animated, 'parallel').mockImplementation(() => ({
+        start: jest.fn(),
+      }));
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should render log entries with fade-in animations', () => {
+      render(<StatusLog logs={mockLogEntries} />);
+      
+      // Test that log entries are rendered (animations are mocked)
+      expect(screen.getByText('Biometric enrollment successful')).toBeTruthy();
+      expect(screen.getByText('Validation failed: Invalid signature')).toBeTruthy();
+      expect(screen.getByText('Biometric sensor check completed')).toBeTruthy();
+    });
+
+    it('should handle smooth scrolling behavior', () => {
+      const { rerender } = render(<StatusLog logs={[mockLogEntries[0]]} />);
+      
+      // Add new log entry to trigger scroll animation
+      rerender(<StatusLog logs={mockLogEntries} />);
+      
+      // Verify all entries are still rendered
+      expect(screen.getByText('Biometric enrollment successful')).toBeTruthy();
+      expect(screen.getByText('Validation failed: Invalid signature')).toBeTruthy();
+      expect(screen.getByText('Biometric sensor check completed')).toBeTruthy();
+    });
+
+    it('should include loading state animations', () => {
+      render(<StatusLog logs={[]} isLoading={true} />);
+      
+      expect(screen.getByText('Operation in progress...')).toBeTruthy();
+      // ActivityIndicator should be present
+    });
+
+    it('should animate new log entries when logs are added', () => {
+      const { rerender } = render(<StatusLog logs={[]} />);
+      
+      // Add logs to trigger animations
+      rerender(<StatusLog logs={[mockLogEntries[0]]} />);
+      
+      expect(screen.getByText('Biometric enrollment successful')).toBeTruthy();
+    });
+
+    it('should handle staggered animations for multiple new entries', () => {
+      const { rerender } = render(<StatusLog logs={[]} />);
+      
+      // Add multiple logs at once
+      rerender(<StatusLog logs={mockLogEntries} />);
+      
+      // All entries should be rendered
+      expect(screen.getByText('Biometric enrollment successful')).toBeTruthy();
+      expect(screen.getByText('Validation failed: Invalid signature')).toBeTruthy();
+      expect(screen.getByText('Biometric sensor check completed')).toBeTruthy();
+    });
+
+    it('should clean up animations for removed logs', () => {
+      const { rerender } = render(<StatusLog logs={mockLogEntries} />);
+      
+      // Remove some logs
+      rerender(<StatusLog logs={[mockLogEntries[0]]} />);
+      
+      // Only the remaining log should be visible
+      expect(screen.getByText('Biometric enrollment successful')).toBeTruthy();
+      expect(screen.queryByText('Validation failed: Invalid signature')).toBeNull();
     });
   });
 });

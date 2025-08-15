@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { LogEntry, OperationResult } from '../types';
+import { useTheme } from '../theme';
 
 export interface StatusLogProps {
   logs: LogEntry[];
@@ -19,6 +21,13 @@ const StatusLog: React.FC<StatusLogProps> = ({
   currentOperation,
   isLoading = false,
 }) => {
+  const { theme } = useTheme();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const fadeAnims = useRef<Map<string, Animated.Value>>(new Map());
+  const scaleAnims = useRef<Map<string, Animated.Value>>(new Map());
+  const previousLogsLength = useRef(logs.length);
+  const timeoutRefs = useRef<Set<NodeJS.Timeout>>(new Set());
+
   const formatTimestamp = (timestamp: Date): string => {
     return timestamp.toLocaleTimeString('en-US', {
       hour12: false,
@@ -31,13 +40,13 @@ const StatusLog: React.FC<StatusLogProps> = ({
   const getStatusColor = (status: LogEntry['status']): string => {
     switch (status) {
       case 'success':
-        return '#4CAF50';
+        return theme.colors.success;
       case 'error':
-        return '#F44336';
+        return theme.colors.error;
       case 'info':
-        return '#2196F3';
+        return theme.colors.info;
       default:
-        return '#757575';
+        return theme.colors.textSecondary;
     }
   };
 
@@ -54,47 +63,195 @@ const StatusLog: React.FC<StatusLogProps> = ({
     }
   };
 
-  const renderLogEntry = (entry: LogEntry) => (
-    <View key={entry.id} style={styles.logEntry}>
-      <View style={styles.logHeader}>
-        <Text
-          style={[styles.statusIcon, { color: getStatusColor(entry.status) }]}
-        >
-          {getStatusIcon(entry.status)}
-        </Text>
-        <Text style={styles.timestamp}>{formatTimestamp(entry.timestamp)}</Text>
-        <Text style={styles.operation}>{entry.operation.toUpperCase()}</Text>
-      </View>
-      <Text style={styles.message}>{entry.message}</Text>
-      {entry.details && (
-        <Text style={styles.details}>
-          {typeof entry.details === 'string'
-            ? entry.details
-            : JSON.stringify(entry.details, null, 2)}
-        </Text>
-      )}
-    </View>
-  );
+  const getStatusBorderColor = (status: LogEntry['status']): string => {
+    switch (status) {
+      case 'success':
+        return theme.colors.success;
+      case 'error':
+        return theme.colors.error;
+      case 'info':
+        return theme.colors.info;
+      default:
+        return theme.colors.border;
+    }
+  };
+
+  // Initialize animations for new log entries
+  useEffect(() => {
+    logs.forEach((log) => {
+      if (!fadeAnims.current.has(log.id)) {
+        fadeAnims.current.set(log.id, new Animated.Value(0));
+        scaleAnims.current.set(log.id, new Animated.Value(0.8));
+      }
+    });
+
+    // Clean up animations for removed logs
+    const currentLogIds = new Set(logs.map(log => log.id));
+    fadeAnims.current.forEach((_, id) => {
+      if (!currentLogIds.has(id)) {
+        fadeAnims.current.delete(id);
+        scaleAnims.current.delete(id);
+      }
+    });
+  }, [logs]);
+
+  // Animate new log entries
+  useEffect(() => {
+    if (logs.length > previousLogsLength.current) {
+      // New logs were added, animate them in
+      const newLogs = logs.slice(previousLogsLength.current);
+      
+      newLogs.forEach((log, index) => {
+        const fadeAnim = fadeAnims.current.get(log.id);
+        const scaleAnim = scaleAnims.current.get(log.id);
+        
+        if (fadeAnim && scaleAnim) {
+          // Stagger the animations slightly for multiple new entries
+          const delay = index * 100;
+          
+          const timeoutId = setTimeout(() => {
+            Animated.parallel([
+              Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+              }),
+              Animated.spring(scaleAnim, {
+                toValue: 1,
+                tension: 100,
+                friction: 8,
+                useNativeDriver: true,
+              }),
+            ]).start();
+            timeoutRefs.current.delete(timeoutId);
+          }, delay);
+          
+          timeoutRefs.current.add(timeoutId);
+        }
+      });
+
+      // Auto-scroll to show new entries
+      const scrollTimeoutId = setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+        timeoutRefs.current.delete(scrollTimeoutId);
+      }, 150);
+      
+      timeoutRefs.current.add(scrollTimeoutId);
+    } else {
+      // Existing logs, make sure they're visible
+      logs.forEach((log) => {
+        const fadeAnim = fadeAnims.current.get(log.id);
+        const scaleAnim = scaleAnims.current.get(log.id);
+        
+        if (fadeAnim && scaleAnim) {
+          fadeAnim.setValue(1);
+          scaleAnim.setValue(1);
+        }
+      });
+    }
+
+    previousLogsLength.current = logs.length;
+  }, [logs]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      timeoutRefs.current.forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+      timeoutRefs.current.clear();
+    };
+  }, []);
+
+  const renderLogEntry = (entry: LogEntry) => {
+    const fadeAnim = fadeAnims.current.get(entry.id) || new Animated.Value(1);
+    const scaleAnim = scaleAnims.current.get(entry.id) || new Animated.Value(1);
+
+    return (
+      <Animated.View 
+        key={entry.id} 
+        style={[
+          styles.logEntry,
+          {
+            backgroundColor: theme.colors.surface,
+            borderLeftColor: getStatusBorderColor(entry.status),
+            borderColor: theme.colors.border,
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          }
+        ]}
+      >
+        <View style={styles.logHeader}>
+          <View style={[
+            styles.statusIconContainer,
+            { backgroundColor: getStatusColor(entry.status) }
+          ]}>
+            <Text style={styles.statusIcon}>
+              {getStatusIcon(entry.status)}
+            </Text>
+          </View>
+          <View style={styles.logHeaderContent}>
+            <View style={styles.logHeaderTop}>
+              <Text style={[styles.operation, { color: theme.colors.text }]}>
+                {entry.operation.toUpperCase()}
+              </Text>
+              <Text style={[styles.timestamp, { color: theme.colors.textSecondary }]}>
+                {formatTimestamp(entry.timestamp)}
+              </Text>
+            </View>
+            <Text style={[styles.message, { color: theme.colors.text }]}>
+              {entry.message}
+            </Text>
+          </View>
+        </View>
+        {entry.details && (
+          <Text style={[
+            styles.details,
+            {
+              color: theme.colors.textSecondary,
+              backgroundColor: theme.colors.surfaceSecondary,
+              borderColor: theme.colors.border,
+            }
+          ]}>
+            {typeof entry.details === 'string'
+              ? entry.details
+              : JSON.stringify(entry.details, null, 2)}
+          </Text>
+        )}
+      </Animated.View>
+    );
+  };
 
   const renderCurrentOperation = () => {
     if (!currentOperation && !isLoading) return null;
 
     return (
-      <View style={styles.currentOperation}>
+      <Animated.View style={[
+        styles.currentOperation,
+        {
+          backgroundColor: theme.colors.surface,
+          borderLeftColor: isLoading ? theme.colors.info : 
+            (currentOperation?.success ? theme.colors.success : theme.colors.error),
+          borderColor: theme.colors.border,
+        }
+      ]}>
         <View style={styles.currentOperationHeader}>
           {isLoading && (
             <ActivityIndicator
               size="small"
-              color="#2196F3"
+              color={theme.colors.info}
               style={styles.loadingIndicator}
             />
           )}
-          <Text style={styles.currentOperationTitle}>
+          <Animated.Text style={[
+            styles.currentOperationTitle,
+            { color: theme.colors.info }
+          ]}>
             {isLoading ? 'Operation in progress...' : 'Latest Operation'}
-          </Text>
+          </Animated.Text>
         </View>
         {currentOperation && (
-          <>
+          <Animated.View>
             <Text
               style={[
                 styles.currentOperationMessage,
@@ -108,29 +265,47 @@ const StatusLog: React.FC<StatusLogProps> = ({
               {currentOperation.message}
             </Text>
             {currentOperation.data && (
-              <Text style={styles.currentOperationData}>
+              <Text style={[
+                styles.currentOperationData,
+                {
+                  color: theme.colors.textSecondary,
+                  backgroundColor: theme.colors.surfaceSecondary,
+                  borderColor: theme.colors.border,
+                }
+              ]}>
                 {typeof currentOperation.data === 'string'
                   ? currentOperation.data
                   : JSON.stringify(currentOperation.data, null, 2)}
               </Text>
             )}
-          </>
+          </Animated.View>
         )}
-      </View>
+      </Animated.View>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Status Log</Text>
+    <View style={[
+      styles.container,
+      {
+        backgroundColor: theme.colors.background,
+        borderColor: theme.colors.border,
+      }
+    ]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        Status Log
+      </Text>
       {renderCurrentOperation()}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
       >
         {logs.length === 0 ? (
-          <Text style={styles.emptyMessage}>No operations logged yet</Text>
+          <Text style={[styles.emptyMessage, { color: theme.colors.textSecondary }]}>
+            No operations logged yet
+          </Text>
         ) : (
           logs
             .slice()
@@ -145,24 +320,33 @@ const StatusLog: React.FC<StatusLogProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 16,
-    marginVertical: 8,
+    borderRadius: 16,
+    padding: 20,
+    marginVertical: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 16,
+    letterSpacing: -0.5,
   },
   currentOperation: {
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#2196F3',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   currentOperationHeader: {
     flexDirection: 'row',
@@ -173,85 +357,100 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   currentOperationTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#2196F3',
+    letterSpacing: -0.2,
   },
   currentOperationMessage: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 8,
+    lineHeight: 22,
   },
   currentOperationData: {
     fontSize: 12,
-    color: '#666',
     fontFamily: 'monospace',
-    backgroundColor: '#f8f8f8',
-    padding: 8,
-    borderRadius: 4,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    lineHeight: 16,
   },
   scrollView: {
     flex: 1,
-    maxHeight: 300,
+    maxHeight: 400,
   },
   scrollContent: {
-    paddingBottom: 8,
+    paddingBottom: 16,
   },
   logEntry: {
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   logHeader: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  statusIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
+    marginRight: 12,
+    flexShrink: 0,
   },
   statusIcon: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginRight: 8,
-    width: 20,
-    textAlign: 'center',
+    color: '#FFFFFF',
+  },
+  logHeaderContent: {
+    flex: 1,
+  },
+  logHeaderTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   timestamp: {
     fontSize: 12,
-    color: '#666',
     fontFamily: 'monospace',
-    marginRight: 12,
+    fontWeight: '500',
   },
   operation: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#888',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 3,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   message: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '500',
   },
   details: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 6,
+    marginTop: 12,
     fontFamily: 'monospace',
-    backgroundColor: '#f8f8f8',
-    padding: 8,
-    borderRadius: 4,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    lineHeight: 16,
   },
   emptyMessage: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: 16,
     textAlign: 'center',
     fontStyle: 'italic',
-    marginTop: 20,
+    marginTop: 32,
+    lineHeight: 24,
   },
 });
 
