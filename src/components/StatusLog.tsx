@@ -26,15 +26,19 @@ const StatusLog: React.FC<StatusLogProps> = ({
   const fadeAnims = useRef<Map<string, Animated.Value>>(new Map());
   const scaleAnims = useRef<Map<string, Animated.Value>>(new Map());
   const previousLogsLength = useRef(logs.length);
-  const timeoutRefs = useRef<Set<NodeJS.Timeout>>(new Set());
+  const timeoutRefs = useRef<Set<number>>(new Set());
 
   const formatTimestamp = (timestamp: Date): string => {
-    return timestamp.toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }) + '.' + timestamp.getMilliseconds().toString().padStart(3, '0');
+    return (
+      timestamp.toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }) +
+      '.' +
+      timestamp.getMilliseconds().toString().padStart(3, '0')
+    );
   };
 
   const getStatusColor = (status: LogEntry['status']): string => {
@@ -78,7 +82,7 @@ const StatusLog: React.FC<StatusLogProps> = ({
 
   // Initialize animations for new log entries
   useEffect(() => {
-    logs.forEach((log) => {
+    logs.forEach(log => {
       if (!fadeAnims.current.has(log.id)) {
         fadeAnims.current.set(log.id, new Animated.Value(0));
         scaleAnims.current.set(log.id, new Animated.Value(0.8));
@@ -125,7 +129,7 @@ const StatusLog: React.FC<StatusLogProps> = ({
             ]).start();
             timeoutRefs.current.delete(timeoutId);
           }, delay);
-          
+
           timeoutRefs.current.add(timeoutId);
         }
       });
@@ -135,14 +139,14 @@ const StatusLog: React.FC<StatusLogProps> = ({
         scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         timeoutRefs.current.delete(scrollTimeoutId);
       }, 150);
-      
+
       timeoutRefs.current.add(scrollTimeoutId);
     } else {
       // Existing logs, make sure they're visible using native driver
-      logs.forEach((log) => {
+      logs.forEach(log => {
         const fadeAnim = fadeAnims.current.get(log.id);
         const scaleAnim = scaleAnims.current.get(log.id);
-        
+
         if (fadeAnim && scaleAnim) {
           Animated.parallel([
             Animated.timing(fadeAnim, {
@@ -178,8 +182,8 @@ const StatusLog: React.FC<StatusLogProps> = ({
     const scaleAnim = scaleAnims.current.get(entry.id) || new Animated.Value(1);
 
     return (
-      <Animated.View 
-        key={entry.id} 
+      <Animated.View
+        key={entry.id}
         style={[
           styles.logEntry,
           {
@@ -188,24 +192,29 @@ const StatusLog: React.FC<StatusLogProps> = ({
             borderColor: theme.colors.border,
             opacity: fadeAnim,
             transform: [{ scale: scaleAnim }],
-          }
+          },
         ]}
       >
         <View style={styles.logHeader}>
-          <View style={[
-            styles.statusIconContainer,
-            { backgroundColor: getStatusColor(entry.status) }
-          ]}>
-            <Text style={styles.statusIcon}>
-              {getStatusIcon(entry.status)}
-            </Text>
+          <View
+            style={[
+              styles.statusIconContainer,
+              { backgroundColor: getStatusColor(entry.status) },
+            ]}
+          >
+            <Text style={styles.statusIcon}>{getStatusIcon(entry.status)}</Text>
           </View>
           <View style={styles.logHeaderContent}>
             <View style={styles.logHeaderTop}>
               <Text style={[styles.operation, { color: theme.colors.text }]}>
                 {entry.operation.toUpperCase()}
               </Text>
-              <Text style={[styles.timestamp, { color: theme.colors.textSecondary }]}>
+              <Text
+                style={[
+                  styles.timestamp,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
                 {formatTimestamp(entry.timestamp)}
               </Text>
             </View>
@@ -215,14 +224,16 @@ const StatusLog: React.FC<StatusLogProps> = ({
           </View>
         </View>
         {entry.details && (
-          <Text style={[
-            styles.details,
-            {
-              color: theme.colors.textSecondary,
-              backgroundColor: theme.colors.surfaceSecondary,
-              borderColor: theme.colors.border,
-            }
-          ]}>
+          <Text
+            style={[
+              styles.details,
+              {
+                color: theme.colors.textSecondary,
+                backgroundColor: theme.colors.surfaceSecondary,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
             {typeof entry.details === 'string'
               ? entry.details
               : JSON.stringify(entry.details, null, 2)}
@@ -236,15 +247,20 @@ const StatusLog: React.FC<StatusLogProps> = ({
     if (!currentOperation && !isLoading) return null;
 
     return (
-      <Animated.View style={[
-        styles.currentOperation,
-        {
-          backgroundColor: theme.colors.surface,
-          borderLeftColor: isLoading ? theme.colors.info : 
-            (currentOperation?.success ? theme.colors.success : theme.colors.error),
-          borderColor: theme.colors.border,
-        }
-      ]}>
+      <Animated.View
+        style={[
+          styles.currentOperation,
+          {
+            backgroundColor: theme.colors.surface,
+            borderLeftColor: isLoading
+              ? theme.colors.info
+              : currentOperation?.success
+              ? theme.colors.success
+              : theme.colors.error,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
         <View style={styles.currentOperationHeader}>
           {isLoading && (
             <ActivityIndicator
@@ -253,10 +269,9 @@ const StatusLog: React.FC<StatusLogProps> = ({
               style={styles.loadingIndicator}
             />
           )}
-          <Animated.Text style={[
-            styles.currentOperationTitle,
-            { color: theme.colors.info }
-          ]}>
+          <Animated.Text
+            style={[styles.currentOperationTitle, { color: theme.colors.info }]}
+          >
             {isLoading ? 'Operation in progress...' : 'Latest Operation'}
           </Animated.Text>
         </View>
@@ -275,14 +290,16 @@ const StatusLog: React.FC<StatusLogProps> = ({
               {currentOperation.message}
             </Text>
             {currentOperation.data && (
-              <Text style={[
-                styles.currentOperationData,
-                {
-                  color: theme.colors.textSecondary,
-                  backgroundColor: theme.colors.surfaceSecondary,
-                  borderColor: theme.colors.border,
-                }
-              ]}>
+              <Text
+                style={[
+                  styles.currentOperationData,
+                  {
+                    color: theme.colors.textSecondary,
+                    backgroundColor: theme.colors.surfaceSecondary,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
                 {typeof currentOperation.data === 'string'
                   ? currentOperation.data
                   : JSON.stringify(currentOperation.data, null, 2)}
@@ -295,13 +312,15 @@ const StatusLog: React.FC<StatusLogProps> = ({
   };
 
   return (
-    <View style={[
-      styles.container,
-      {
-        backgroundColor: theme.colors.background,
-        borderColor: theme.colors.border,
-      }
-    ]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.background,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
       <Text style={[styles.title, { color: theme.colors.text }]}>
         Status Log
       </Text>
@@ -316,14 +335,13 @@ const StatusLog: React.FC<StatusLogProps> = ({
         keyboardShouldPersistTaps="handled"
       >
         {logs.length === 0 ? (
-          <Text style={[styles.emptyMessage, { color: theme.colors.textSecondary }]}>
+          <Text
+            style={[styles.emptyMessage, { color: theme.colors.textSecondary }]}
+          >
             No operations logged yet
           </Text>
         ) : (
-          logs
-            .slice()
-            .reverse()
-            .map(renderLogEntry)
+          logs.slice().reverse().map(renderLogEntry)
         )}
       </ScrollView>
     </View>
@@ -333,15 +351,8 @@ const StatusLog: React.FC<StatusLogProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    borderRadius: 16,
     padding: 20,
     marginVertical: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
   },
   title: {
     fontSize: 24,

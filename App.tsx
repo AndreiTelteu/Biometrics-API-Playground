@@ -419,73 +419,41 @@ function AppContent(): React.JSX.Element {
     >
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.surface} />
       
-      <Header />
-      
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <AnimatedView
-          style={styles.section}
-          lightBackgroundColor={theme.colors.surface}
-          darkBackgroundColor={theme.colors.surface}
-          lightBorderColor={theme.colors.border}
-          darkBorderColor={theme.colors.border}
-        >
-          <BiometricStatusDisplay
-            available={biometricStatus.available}
-            biometryType={biometricStatus.biometryType}
-            keysExist={keysExist}
-            error={biometricStatus.error}
-          />
-        </AnimatedView>
+        <Header />
+        
+        <BiometricStatusDisplay
+          available={biometricStatus.available}
+          biometryType={biometricStatus.biometryType}
+          keysExist={keysExist}
+          error={biometricStatus.error}
+        />
 
-        <AnimatedView
-          style={styles.section}
-          lightBackgroundColor={theme.colors.surface}
-          darkBackgroundColor={theme.colors.surface}
-          lightBorderColor={theme.colors.border}
-          darkBorderColor={theme.colors.border}
-        >
-          <EndpointConfiguration
-            enrollConfig={enrollEndpoint}
-            validateConfig={validateEndpoint}
-            onConfigChange={saveEndpointConfiguration}
-          />
-        </AnimatedView>
+        <EndpointConfiguration
+          enrollConfig={enrollEndpoint}
+          validateConfig={validateEndpoint}
+          onConfigChange={saveEndpointConfiguration}
+        />
 
-        <AnimatedView
-          style={styles.section}
-          lightBackgroundColor={theme.colors.surface}
-          darkBackgroundColor={theme.colors.surface}
-          lightBorderColor={theme.colors.border}
-          darkBorderColor={theme.colors.border}
-        >
-          <BiometricActions
-            onEnroll={handleEnroll}
-            onValidate={handleValidate}
-            onDeleteKeys={handleDeleteKeys}
-            disabled={isLoading}
-            keysExist={keysExist}
-            biometricAvailable={biometricStatus.available}
-            endpointsConfigured={!!(enrollEndpoint.url && validateEndpoint.url)}
-          />
-        </AnimatedView>
+        <BiometricActions
+          onEnroll={handleEnroll}
+          onValidate={handleValidate}
+          onDeleteKeys={handleDeleteKeys}
+          disabled={isLoading}
+          keysExist={keysExist}
+          biometricAvailable={biometricStatus.available}
+          endpointsConfigured={!!(enrollEndpoint.url && validateEndpoint.url)}
+        />
 
-        <AnimatedView
-          style={styles.section}
-          lightBackgroundColor={theme.colors.surface}
-          darkBackgroundColor={theme.colors.surface}
-          lightBorderColor={theme.colors.border}
-          darkBorderColor={theme.colors.border}
-        >
-          <StatusLog
-            logs={logs}
-            currentOperation={currentOperation || undefined}
-            isLoading={isLoading}
-          />
-        </AnimatedView>
+        <StatusLog
+          logs={logs}
+          currentOperation={currentOperation || undefined}
+          isLoading={isLoading}
+        />
       </ScrollView>
     </AnimatedView>
   );
@@ -509,15 +477,6 @@ const createStyles = (theme: any) =>
     },
     scrollContent: {
       paddingBottom: theme.spacing.xl,
-      paddingTop: theme.spacing.md,
-    },
-    section: {
-      marginBottom: theme.spacing.md,
-      marginHorizontal: theme.spacing.md,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      borderWidth: 1,
-      ...theme.shadows.md,
     },
   });
 

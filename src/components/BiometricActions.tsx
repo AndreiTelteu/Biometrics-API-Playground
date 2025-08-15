@@ -58,7 +58,6 @@ const createStyles = (theme: any) => StyleSheet.create({
   container: {
     padding: theme.spacing.lg,
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
     marginVertical: theme.spacing.md,
     ...theme.shadows.md,
     borderWidth: 1,

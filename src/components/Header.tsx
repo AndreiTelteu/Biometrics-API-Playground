@@ -116,11 +116,6 @@ const createStyles = (theme: any) =>
     container: {
       borderBottomWidth: 1,
       paddingTop: 20,
-      shadowColor: theme.colors.text,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 4,
     },
     content: {
       flexDirection: 'row',

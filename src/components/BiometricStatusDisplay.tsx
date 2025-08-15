@@ -205,6 +205,7 @@ const BiometricStatusDisplay: React.FC<BiometricStatusDisplayProps> = ({
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
     marginVertical: theme.spacing.sm,
+    borderRadius: 0,
   },
   title: {
     fontSize: theme.typography.sizes['2xl'],
@@ -304,7 +305,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   summaryCard: {
     borderColor: theme.colors.info,
-    backgroundColor: `${theme.colors.info}08`,
+    backgroundColor: theme.colors.surfaceSecondary,
   },
   summaryTitle: {
     fontSize: theme.typography.sizes.lg,
