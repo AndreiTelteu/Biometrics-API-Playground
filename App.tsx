@@ -6,13 +6,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  StatusBar,
-  StyleSheet,
-  View,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { StatusBar, StyleSheet, ScrollView, Alert } from 'react-native';
 import { AnimatedView } from './src/components/AnimatedView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -21,13 +15,11 @@ import { ThemeProvider } from './src/theme/ThemeProvider';
 import { useTheme } from './src/theme';
 
 // Import components
-import {
-  BiometricStatusDisplay,
-  EndpointConfiguration,
-  BiometricActions,
-  StatusLog,
-  Header,
-} from './src/components';
+import BiometricActions from './src/components/BiometricActions';
+import BiometricStatusDisplay from './src/components/BiometricStatusDisplay';
+import EndpointConfiguration from './src/components/EndpointConfiguration';
+import { Header } from './src/components/Header';
+import StatusLog from './src/components/StatusLog';
 
 // Import services
 import { biometricService, biometricAPIService } from './src/services';
@@ -77,7 +69,6 @@ function AppContent(): React.JSX.Element {
     logError,
     logInfo,
     executeWithLogging,
-    clearLogs,
   } = useStatusLogger();
 
   /**
@@ -277,8 +268,12 @@ function AppContent(): React.JSX.Element {
 
         // Generate payload for signature (custom or timestamp)
         logInfo('validate', 'Generating payload for signature...');
-        const payload = biometricService.generatePayload(validateEndpoint.customPayload);
-        const payloadType = validateEndpoint.customPayload ? 'custom' : 'timestamp';
+        const payload = biometricService.generatePayload(
+          validateEndpoint.customPayload,
+        );
+        const payloadType = validateEndpoint.customPayload
+          ? 'custom'
+          : 'timestamp';
         logInfo('validate', `Generated ${payloadType} payload: ${payload}`);
 
         // Create signature with biometric authentication
@@ -417,15 +412,18 @@ function AppContent(): React.JSX.Element {
       lightBackgroundColor={theme.colors.background}
       darkBackgroundColor={theme.colors.background}
     >
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.surface} />
-      
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.surface}
+      />
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <Header />
-        
+
         <BiometricStatusDisplay
           available={biometricStatus.available}
           biometryType={biometricStatus.biometryType}

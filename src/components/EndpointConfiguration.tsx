@@ -1,6 +1,6 @@
 /**
  * EndpointConfiguration Component
- * 
+ *
  * Provides UI for configuring API endpoints with URL and HTTP method inputs,
  * form validation, and persistent storage using AsyncStorage.
  * Now features collapsible sections for better organization.
@@ -18,7 +18,7 @@ import {
 // Note: Using a simple button-based method selector instead of Picker for better test compatibility
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EndpointConfig, HttpMethod, ValidationResult } from '../types';
-import { CollapsibleSection } from './CollapsibleSection';
+import CollapsibleSection from './CollapsibleSection';
 import { useTheme } from '../theme';
 
 interface EndpointConfigurationProps {
@@ -40,7 +40,9 @@ const STORAGE_KEYS = {
 const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH'];
 
 // Helper function to parse header string into key-value pairs
-const parseHeadersFromStrings = (headerEntries: HeaderEntry[]): Record<string, string> => {
+const parseHeadersFromStrings = (
+  headerEntries: HeaderEntry[],
+): Record<string, string> => {
   return headerEntries.reduce((acc, entry) => {
     const trimmed = entry.headerString.trim();
     if (trimmed) {
@@ -64,10 +66,14 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
 }) => {
   const { theme } = useTheme();
   const [enrollUrl, setEnrollUrl] = useState(enrollConfig.url);
-  const [enrollMethod, setEnrollMethod] = useState<HttpMethod>(enrollConfig.method);
+  const [enrollMethod, setEnrollMethod] = useState<HttpMethod>(
+    enrollConfig.method,
+  );
   const [validateUrl, setValidateUrl] = useState(validateConfig.url);
-  const [validateMethod, setValidateMethod] = useState<HttpMethod>(validateConfig.method);
-  
+  const [validateMethod, setValidateMethod] = useState<HttpMethod>(
+    validateConfig.method,
+  );
+
   const [enrollUrlError, setEnrollUrlError] = useState<string>('');
   const [validateUrlError, setValidateUrlError] = useState<string>('');
 
@@ -75,28 +81,32 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   const [enrollUrlFocused, setEnrollUrlFocused] = useState(false);
   const [validateUrlFocused, setValidateUrlFocused] = useState(false);
   const [validatePayloadFocused, setValidatePayloadFocused] = useState(false);
-  const [focusedHeaderInputs, setFocusedHeaderInputs] = useState<Set<string>>(new Set());
-  
+  const [focusedHeaderInputs, setFocusedHeaderInputs] = useState<Set<string>>(
+    new Set(),
+  );
+
   // Animation values for error transitions
   const [enrollErrorAnimation] = useState(new Animated.Value(0));
   const [validateErrorAnimation] = useState(new Animated.Value(0));
 
   // Headers state
-  const [enrollHeaders, setEnrollHeaders] = useState<HeaderEntry[]>(() => 
+  const [enrollHeaders, setEnrollHeaders] = useState<HeaderEntry[]>(() =>
     Object.entries(enrollConfig.headers || {}).map(([key, value], index) => ({
       id: `enroll-${index}`,
       headerString: `${key}: ${value}`,
-    }))
+    })),
   );
-  const [validateHeaders, setValidateHeaders] = useState<HeaderEntry[]>(() => 
+  const [validateHeaders, setValidateHeaders] = useState<HeaderEntry[]>(() =>
     Object.entries(validateConfig.headers || {}).map(([key, value], index) => ({
       id: `validate-${index}`,
       headerString: `${key}: ${value}`,
-    }))
+    })),
   );
 
   // Payload customization state (only for validation endpoint)
-  const [validateCustomPayload, setValidateCustomPayload] = useState(validateConfig.customPayload || '{date}');
+  const [validateCustomPayload, setValidateCustomPayload] = useState(
+    validateConfig.customPayload || '{date}',
+  );
 
   // Load saved configuration on component mount
   useEffect(() => {
@@ -125,24 +135,29 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   useEffect(() => {
     if (enrollUrl || enrollMethod !== 'POST' || enrollHeaders.length > 0) {
       const headers = parseHeadersFromStrings(enrollHeaders);
-      
-      saveConfiguration('enroll', { 
-        url: enrollUrl, 
+
+      saveConfiguration('enroll', {
+        url: enrollUrl,
         method: enrollMethod,
-        headers: Object.keys(headers).length > 0 ? headers : undefined
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
       });
     }
   }, [enrollUrl, enrollMethod, enrollHeaders]);
 
   useEffect(() => {
-    if (validateUrl || validateMethod !== 'POST' || validateHeaders.length > 0 || validateCustomPayload) {
+    if (
+      validateUrl ||
+      validateMethod !== 'POST' ||
+      validateHeaders.length > 0 ||
+      validateCustomPayload
+    ) {
       const headers = parseHeadersFromStrings(validateHeaders);
-      
-      saveConfiguration('validate', { 
-        url: validateUrl, 
+
+      saveConfiguration('validate', {
+        url: validateUrl,
         method: validateMethod,
         headers: Object.keys(headers).length > 0 ? headers : undefined,
-        customPayload: validateCustomPayload || undefined
+        customPayload: validateCustomPayload || undefined,
       });
     }
   }, [validateUrl, validateMethod, validateHeaders, validateCustomPayload]);
@@ -158,16 +173,18 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         const config = JSON.parse(savedEnrollConfig) as EndpointConfig;
         setEnrollUrl(config.url);
         setEnrollMethod(config.method);
-        
+
         // Load headers
         if (config.headers) {
-          const headerEntries = Object.entries(config.headers).map(([key, value], index) => ({
-            id: `enroll-loaded-${index}`,
-            headerString: `${key}: ${value}`,
-          }));
+          const headerEntries = Object.entries(config.headers).map(
+            ([key, value], index) => ({
+              id: `enroll-loaded-${index}`,
+              headerString: `${key}: ${value}`,
+            }),
+          );
           setEnrollHeaders(headerEntries);
         }
-        
+
         onConfigChange('enroll', config);
       }
 
@@ -176,16 +193,18 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         setValidateUrl(config.url);
         setValidateMethod(config.method);
         setValidateCustomPayload(config.customPayload || '{date}');
-        
+
         // Load headers
         if (config.headers) {
-          const headerEntries = Object.entries(config.headers).map(([key, value], index) => ({
-            id: `validate-loaded-${index}`,
-            headerString: `${key}: ${value}`,
-          }));
+          const headerEntries = Object.entries(config.headers).map(
+            ([key, value], index) => ({
+              id: `validate-loaded-${index}`,
+              headerString: `${key}: ${value}`,
+            }),
+          );
           setValidateHeaders(headerEntries);
         }
-        
+
         onConfigChange('validate', config);
       }
     } catch (error) {
@@ -193,9 +212,15 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
     }
   };
 
-  const saveConfiguration = async (type: 'enroll' | 'validate', config: EndpointConfig) => {
+  const saveConfiguration = async (
+    type: 'enroll' | 'validate',
+    config: EndpointConfig,
+  ) => {
     try {
-      const storageKey = type === 'enroll' ? STORAGE_KEYS.ENROLL_CONFIG : STORAGE_KEYS.VALIDATE_CONFIG;
+      const storageKey =
+        type === 'enroll'
+          ? STORAGE_KEYS.ENROLL_CONFIG
+          : STORAGE_KEYS.VALIDATE_CONFIG;
       await AsyncStorage.setItem(storageKey, JSON.stringify(config));
     } catch (error) {
       console.warn(`Failed to save ${type} configuration:`, error);
@@ -204,16 +229,19 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
 
   const validateUrlFormat = (url: string): ValidationResult => {
     const errors: string[] = [];
-    
+
     if (!url.trim()) {
       return { isValid: true, errors: [] }; // Empty URL is valid (optional)
     }
 
     // Basic URL validation regex
-    const urlRegex = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
-    
+    const urlRegex =
+      /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
+
     if (!urlRegex.test(url)) {
-      errors.push('Please enter a valid URL (must start with http:// or https://)');
+      errors.push(
+        'Please enter a valid URL (must start with http:// or https://)',
+      );
     }
 
     return {
@@ -226,7 +254,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
     setEnrollUrl(url);
     const validation = validateUrlFormat(url);
     const newError = validation.errors.join(', ');
-    
+
     // Animate error appearance/disappearance
     if (newError && !enrollUrlError) {
       // Error appearing
@@ -243,16 +271,16 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         useNativeDriver: false,
       }).start();
     }
-    
+
     setEnrollUrlError(newError);
-    
+
     if (validation.isValid) {
       const headers = parseHeadersFromStrings(enrollHeaders);
-      
-      const newConfig: EndpointConfig = { 
-        url, 
+
+      const newConfig: EndpointConfig = {
+        url,
         method: enrollMethod,
-        headers: Object.keys(headers).length > 0 ? headers : undefined
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
       };
       onConfigChange('enroll', newConfig);
     }
@@ -262,7 +290,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
     setValidateUrl(url);
     const validation = validateUrlFormat(url);
     const newError = validation.errors.join(', ');
-    
+
     // Animate error appearance/disappearance
     if (newError && !validateUrlError) {
       // Error appearing
@@ -279,17 +307,17 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         useNativeDriver: false,
       }).start();
     }
-    
+
     setValidateUrlError(newError);
-    
+
     if (validation.isValid) {
       const headers = parseHeadersFromStrings(validateHeaders);
-      
-      const newConfig: EndpointConfig = { 
-        url, 
+
+      const newConfig: EndpointConfig = {
+        url,
         method: validateMethod,
         headers: Object.keys(headers).length > 0 ? headers : undefined,
-        customPayload: validateCustomPayload || undefined
+        customPayload: validateCustomPayload || undefined,
       };
       onConfigChange('validate', newConfig);
     }
@@ -298,11 +326,11 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   const handleEnrollMethodChange = (method: HttpMethod) => {
     setEnrollMethod(method);
     const headers = parseHeadersFromStrings(enrollHeaders);
-    
-    const newConfig: EndpointConfig = { 
-      url: enrollUrl, 
+
+    const newConfig: EndpointConfig = {
+      url: enrollUrl,
       method,
-      headers: Object.keys(headers).length > 0 ? headers : undefined
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
     };
     onConfigChange('enroll', newConfig);
   };
@@ -310,34 +338,34 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   const handleValidateMethodChange = (method: HttpMethod) => {
     setValidateMethod(method);
     const headers = parseHeadersFromStrings(validateHeaders);
-    
-    const newConfig: EndpointConfig = { 
-      url: validateUrl, 
+
+    const newConfig: EndpointConfig = {
+      url: validateUrl,
       method,
       headers: Object.keys(headers).length > 0 ? headers : undefined,
-      customPayload: validateCustomPayload || undefined
+      customPayload: validateCustomPayload || undefined,
     };
     onConfigChange('validate', newConfig);
   };
 
-
-
   const handleValidatePayloadChange = (payload: string) => {
     setValidateCustomPayload(payload);
     const headers = parseHeadersFromStrings(validateHeaders);
-    
-    const newConfig: EndpointConfig = { 
-      url: validateUrl, 
+
+    const newConfig: EndpointConfig = {
+      url: validateUrl,
       method: validateMethod,
       headers: Object.keys(headers).length > 0 ? headers : undefined,
-      customPayload: payload || undefined
+      customPayload: payload || undefined,
     };
     onConfigChange('validate', newConfig);
   };
 
   // Header management functions
   const generateHeaderId = (type: 'enroll' | 'validate') => {
-    return `${type}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    return `${type}-${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 11)}`;
   };
 
   const addEnrollHeader = () => {
@@ -357,36 +385,36 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   };
 
   const updateEnrollHeader = (id: string, headerString: string) => {
-    const updatedHeaders = enrollHeaders.map(header => 
-      header.id === id ? { ...header, headerString } : header
+    const updatedHeaders = enrollHeaders.map(header =>
+      header.id === id ? { ...header, headerString } : header,
     );
     setEnrollHeaders(updatedHeaders);
-    
+
     // Update configuration immediately
     const headers = parseHeadersFromStrings(updatedHeaders);
-    
-    const newConfig: EndpointConfig = { 
-      url: enrollUrl, 
+
+    const newConfig: EndpointConfig = {
+      url: enrollUrl,
       method: enrollMethod,
-      headers: Object.keys(headers).length > 0 ? headers : undefined
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
     };
     onConfigChange('enroll', newConfig);
   };
 
   const updateValidateHeader = (id: string, headerString: string) => {
-    const updatedHeaders = validateHeaders.map(header => 
-      header.id === id ? { ...header, headerString } : header
+    const updatedHeaders = validateHeaders.map(header =>
+      header.id === id ? { ...header, headerString } : header,
     );
     setValidateHeaders(updatedHeaders);
-    
+
     // Update configuration immediately
     const headers = parseHeadersFromStrings(updatedHeaders);
-    
-    const newConfig: EndpointConfig = { 
-      url: validateUrl, 
+
+    const newConfig: EndpointConfig = {
+      url: validateUrl,
       method: validateMethod,
       headers: Object.keys(headers).length > 0 ? headers : undefined,
-      customPayload: validateCustomPayload || undefined
+      customPayload: validateCustomPayload || undefined,
     };
     onConfigChange('validate', newConfig);
   };
@@ -413,7 +441,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   return (
     <View style={styles.container}>
       <Text style={styles.title}>API Endpoint Configuration</Text>
-      
+
       {/* Enrollment Endpoint Configuration */}
       <CollapsibleSection
         id="enrollment-config"
@@ -428,7 +456,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             style={[
               styles.textInput,
               enrollUrlFocused && styles.textInputFocused,
-              enrollUrlError ? styles.inputError : null
+              enrollUrlError ? styles.inputError : null,
             ]}
             value={enrollUrl}
             onChangeText={handleEnrollUrlChange}
@@ -465,7 +493,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         <View style={styles.inputGroup}>
           <Text style={styles.label}>HTTP Method:</Text>
           <View style={styles.methodSelector}>
-            {HTTP_METHODS.map((method) => (
+            {HTTP_METHODS.map(method => (
               <TouchableOpacity
                 key={method}
                 style={[
@@ -499,22 +527,26 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
               <Text style={styles.addHeaderButtonText}>+ Add Header</Text>
             </TouchableOpacity>
           </View>
-          {enrollHeaders.map((header) => (
+          {enrollHeaders.map(header => (
             <View key={header.id} style={styles.headerRow}>
               <TextInput
                 style={[
                   styles.headerInput,
                   styles.headerFullInput,
-                  focusedHeaderInputs.has(header.id) && styles.textInputFocused
+                  focusedHeaderInputs.has(header.id) && styles.textInputFocused,
                 ]}
                 value={header.headerString}
-                onChangeText={(text) => updateEnrollHeader(header.id, text)}
-                onFocus={() => setFocusedHeaderInputs(prev => new Set(prev).add(header.id))}
-                onBlur={() => setFocusedHeaderInputs(prev => {
-                  const newSet = new Set(prev);
-                  newSet.delete(header.id);
-                  return newSet;
-                })}
+                onChangeText={text => updateEnrollHeader(header.id, text)}
+                onFocus={() =>
+                  setFocusedHeaderInputs(prev => new Set(prev).add(header.id))
+                }
+                onBlur={() =>
+                  setFocusedHeaderInputs(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(header.id);
+                    return newSet;
+                  })
+                }
                 placeholder="Content-Type: application/json"
                 placeholderTextColor={theme.colors.textSecondary}
                 autoCapitalize="none"
@@ -549,7 +581,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             style={[
               styles.textInput,
               validateUrlFocused && styles.textInputFocused,
-              validateUrlError ? styles.inputError : null
+              validateUrlError ? styles.inputError : null,
             ]}
             value={validateUrl}
             onChangeText={handleValidateUrlChange}
@@ -586,7 +618,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         <View style={styles.inputGroup}>
           <Text style={styles.label}>HTTP Method:</Text>
           <View style={styles.methodSelector}>
-            {HTTP_METHODS.map((method) => (
+            {HTTP_METHODS.map(method => (
               <TouchableOpacity
                 key={method}
                 style={[
@@ -599,7 +631,8 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
                 <Text
                   style={[
                     styles.methodButtonText,
-                    validateMethod === method && styles.methodButtonTextSelected,
+                    validateMethod === method &&
+                      styles.methodButtonTextSelected,
                   ]}
                 >
                   {method}
@@ -620,22 +653,26 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
               <Text style={styles.addHeaderButtonText}>+ Add Header</Text>
             </TouchableOpacity>
           </View>
-          {validateHeaders.map((header) => (
+          {validateHeaders.map(header => (
             <View key={header.id} style={styles.headerRow}>
               <TextInput
                 style={[
                   styles.headerInput,
                   styles.headerFullInput,
-                  focusedHeaderInputs.has(header.id) && styles.textInputFocused
+                  focusedHeaderInputs.has(header.id) && styles.textInputFocused,
                 ]}
                 value={header.headerString}
-                onChangeText={(text) => updateValidateHeader(header.id, text)}
-                onFocus={() => setFocusedHeaderInputs(prev => new Set(prev).add(header.id))}
-                onBlur={() => setFocusedHeaderInputs(prev => {
-                  const newSet = new Set(prev);
-                  newSet.delete(header.id);
-                  return newSet;
-                })}
+                onChangeText={text => updateValidateHeader(header.id, text)}
+                onFocus={() =>
+                  setFocusedHeaderInputs(prev => new Set(prev).add(header.id))
+                }
+                onBlur={() =>
+                  setFocusedHeaderInputs(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(header.id);
+                    return newSet;
+                  })
+                }
                 placeholder="Content-Type: application/json"
                 placeholderTextColor={theme.colors.textSecondary}
                 autoCapitalize="none"
@@ -661,7 +698,7 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             style={[
               styles.textInput,
               styles.payloadInput,
-              validatePayloadFocused && styles.textInputFocused
+              validatePayloadFocused && styles.textInputFocused,
             ]}
             value={validateCustomPayload}
             onChangeText={handleValidatePayloadChange}
@@ -675,12 +712,14 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             testID="validate-custom-payload"
           />
           <Text style={styles.helperText}>
-            Use {'{date}'} to insert the current timestamp. Example: "user_action_{'{date}'}" will become "user_action_2024-01-15T10:30:00.000Z"
+            Use {'{date}'} to insert the current timestamp. Example:
+            "user_action_{'{date}'}" will become
+            "user_action_2024-01-15T10:30:00.000Z"
           </Text>
         </View>
       </CollapsibleSection>
 
-      {(!enrollUrl && !validateUrl) && (
+      {!enrollUrl && !validateUrl && (
         <View style={styles.warningContainer}>
           <Text style={styles.warningText}>
             ⚠️ Configure at least one endpoint to test biometric operations
@@ -872,7 +911,8 @@ const createStyles = (theme: any) =>
       fontSize: theme.typography.sizes.xs,
       marginTop: theme.spacing.sm,
       fontStyle: 'italic',
-      lineHeight: theme.typography.lineHeights.relaxed * theme.typography.sizes.xs,
+      lineHeight:
+        theme.typography.lineHeights.relaxed * theme.typography.sizes.xs,
       backgroundColor: theme.colors.surfaceSecondary,
       padding: theme.spacing.sm,
       borderRadius: theme.borderRadius.sm,

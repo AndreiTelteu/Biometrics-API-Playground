@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { BiometryType } from '../types';
 import { useTheme } from '../theme';
-import Card from './Card';
+import { Card } from './Card';
 
 interface BiometricStatusDisplayProps {
   available: boolean;
