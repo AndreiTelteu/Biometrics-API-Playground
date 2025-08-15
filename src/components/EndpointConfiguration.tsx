@@ -13,6 +13,7 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Animated,
 } from 'react-native';
 // Note: Using a simple button-based method selector instead of Picker for better test compatibility
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -74,6 +75,11 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   const [enrollUrlFocused, setEnrollUrlFocused] = useState(false);
   const [validateUrlFocused, setValidateUrlFocused] = useState(false);
   const [validatePayloadFocused, setValidatePayloadFocused] = useState(false);
+  const [focusedHeaderInputs, setFocusedHeaderInputs] = useState<Set<string>>(new Set());
+  
+  // Animation values for error transitions
+  const [enrollErrorAnimation] = useState(new Animated.Value(0));
+  const [validateErrorAnimation] = useState(new Animated.Value(0));
 
   // Headers state
   const [enrollHeaders, setEnrollHeaders] = useState<HeaderEntry[]>(() => 
@@ -95,6 +101,16 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   // Load saved configuration on component mount
   useEffect(() => {
     loadSavedConfiguration();
+  }, []);
+
+  // Initialize error animations based on initial error state
+  useEffect(() => {
+    if (enrollUrlError) {
+      enrollErrorAnimation.setValue(1);
+    }
+    if (validateUrlError) {
+      validateErrorAnimation.setValue(1);
+    }
   }, []);
 
   // Save configuration whenever it changes
@@ -201,7 +217,26 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   const handleEnrollUrlChange = (url: string) => {
     setEnrollUrl(url);
     const validation = validateUrlFormat(url);
-    setEnrollUrlError(validation.errors.join(', '));
+    const newError = validation.errors.join(', ');
+    
+    // Animate error appearance/disappearance
+    if (newError && !enrollUrlError) {
+      // Error appearing
+      Animated.timing(enrollErrorAnimation, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    } else if (!newError && enrollUrlError) {
+      // Error disappearing
+      Animated.timing(enrollErrorAnimation, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    }
+    
+    setEnrollUrlError(newError);
     
     if (validation.isValid) {
       const headers = parseHeadersFromStrings(enrollHeaders);
@@ -218,7 +253,26 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
   const handleValidateUrlChange = (url: string) => {
     setValidateUrl(url);
     const validation = validateUrlFormat(url);
-    setValidateUrlError(validation.errors.join(', '));
+    const newError = validation.errors.join(', ');
+    
+    // Animate error appearance/disappearance
+    if (newError && !validateUrlError) {
+      // Error appearing
+      Animated.timing(validateErrorAnimation, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    } else if (!newError && validateUrlError) {
+      // Error disappearing
+      Animated.timing(validateErrorAnimation, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    }
+    
+    setValidateUrlError(newError);
     
     if (validation.isValid) {
       const headers = parseHeadersFromStrings(validateHeaders);
@@ -379,7 +433,24 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             keyboardType="url"
           />
           {enrollUrlError ? (
-            <Text style={styles.errorText}>{enrollUrlError}</Text>
+            <Animated.View
+              style={[
+                styles.errorContainer,
+                {
+                  opacity: enrollErrorAnimation,
+                  transform: [
+                    {
+                      translateY: enrollErrorAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-10, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <Text style={styles.errorText}>{enrollUrlError}</Text>
+            </Animated.View>
           ) : null}
         </View>
 
@@ -423,9 +494,19 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
           {enrollHeaders.map((header) => (
             <View key={header.id} style={styles.headerRow}>
               <TextInput
-                style={[styles.headerInput, styles.headerFullInput]}
+                style={[
+                  styles.headerInput,
+                  styles.headerFullInput,
+                  focusedHeaderInputs.has(header.id) && styles.textInputFocused
+                ]}
                 value={header.headerString}
                 onChangeText={(text) => updateEnrollHeader(header.id, text)}
+                onFocus={() => setFocusedHeaderInputs(prev => new Set(prev).add(header.id))}
+                onBlur={() => setFocusedHeaderInputs(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(header.id);
+                  return newSet;
+                })}
                 placeholder="Content-Type: application/json"
                 placeholderTextColor={theme.colors.textSecondary}
                 autoCapitalize="none"
@@ -457,9 +538,15 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         <View style={styles.inputGroup}>
           <Text style={styles.label}>URL:</Text>
           <TextInput
-            style={[styles.textInput, validateUrlError ? styles.inputError : null]}
+            style={[
+              styles.textInput,
+              validateUrlFocused && styles.textInputFocused,
+              validateUrlError ? styles.inputError : null
+            ]}
             value={validateUrl}
             onChangeText={handleValidateUrlChange}
+            onFocus={() => setValidateUrlFocused(true)}
+            onBlur={() => setValidateUrlFocused(false)}
             placeholder="https://api.example.com/validate"
             placeholderTextColor={theme.colors.textSecondary}
             autoCapitalize="none"
@@ -467,7 +554,24 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
             keyboardType="url"
           />
           {validateUrlError ? (
-            <Text style={styles.errorText}>{validateUrlError}</Text>
+            <Animated.View
+              style={[
+                styles.errorContainer,
+                {
+                  opacity: validateErrorAnimation,
+                  transform: [
+                    {
+                      translateY: validateErrorAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-10, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <Text style={styles.errorText}>{validateUrlError}</Text>
+            </Animated.View>
           ) : null}
         </View>
 
@@ -511,9 +615,19 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
           {validateHeaders.map((header) => (
             <View key={header.id} style={styles.headerRow}>
               <TextInput
-                style={[styles.headerInput, styles.headerFullInput]}
+                style={[
+                  styles.headerInput,
+                  styles.headerFullInput,
+                  focusedHeaderInputs.has(header.id) && styles.textInputFocused
+                ]}
                 value={header.headerString}
                 onChangeText={(text) => updateValidateHeader(header.id, text)}
+                onFocus={() => setFocusedHeaderInputs(prev => new Set(prev).add(header.id))}
+                onBlur={() => setFocusedHeaderInputs(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(header.id);
+                  return newSet;
+                })}
                 placeholder="Content-Type: application/json"
                 placeholderTextColor={theme.colors.textSecondary}
                 autoCapitalize="none"
@@ -536,9 +650,15 @@ const EndpointConfiguration: React.FC<EndpointConfigurationProps> = ({
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Custom Payload Template:</Text>
           <TextInput
-            style={[styles.textInput, styles.payloadInput]}
+            style={[
+              styles.textInput,
+              styles.payloadInput,
+              validatePayloadFocused && styles.textInputFocused
+            ]}
             value={validateCustomPayload}
             onChangeText={handleValidatePayloadChange}
+            onFocus={() => setValidatePayloadFocused(true)}
+            onBlur={() => setValidatePayloadFocused(false)}
             placeholder="{date}"
             placeholderTextColor={theme.colors.textSecondary}
             multiline={true}
@@ -579,30 +699,46 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     inputGroup: {
-      marginBottom: theme.spacing.md,
+      marginBottom: theme.spacing.lg,
     },
     label: {
       fontSize: theme.typography.sizes.sm,
-      fontWeight: theme.typography.weights.medium,
-      color: theme.colors.textSecondary,
-      marginBottom: theme.spacing.xs,
+      fontWeight: theme.typography.weights.semibold,
+      color: theme.colors.text,
+      marginBottom: theme.spacing.sm,
+      letterSpacing: 0.5,
     },
     textInput: {
-      borderWidth: 1,
+      height: 48,
+      borderWidth: 2,
       borderColor: theme.colors.border,
       borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.md,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
       fontSize: theme.typography.sizes.base,
       backgroundColor: theme.colors.surface,
       color: theme.colors.text,
+      ...theme.shadows.sm,
+      transition: 'all 0.2s ease',
+    },
+    textInputFocused: {
+      borderColor: theme.colors.primary,
+      borderWidth: 2,
+      ...theme.shadows.md,
     },
     inputError: {
       borderColor: theme.colors.error,
+      borderWidth: 2,
+    },
+    errorContainer: {
+      overflow: 'hidden',
     },
     errorText: {
       color: theme.colors.error,
       fontSize: theme.typography.sizes.xs,
       marginTop: theme.spacing.xs,
+      fontWeight: theme.typography.weights.medium,
+      paddingHorizontal: theme.spacing.xs,
     },
     methodSelector: {
       flexDirection: 'row',
@@ -610,80 +746,97 @@ const createStyles = (theme: any) =>
       gap: theme.spacing.sm,
     },
     methodButton: {
+      minWidth: 60,
+      height: 40,
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.sm,
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: theme.colors.border,
       borderRadius: theme.borderRadius.md,
       backgroundColor: theme.colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...theme.shadows.sm,
     },
     methodButtonSelected: {
       backgroundColor: theme.colors.primary,
       borderColor: theme.colors.primary,
+      ...theme.shadows.md,
     },
     methodButtonText: {
       fontSize: theme.typography.sizes.sm,
       color: theme.colors.text,
-      fontWeight: theme.typography.weights.medium,
+      fontWeight: theme.typography.weights.semibold,
     },
     methodButtonTextSelected: {
       color: '#FFFFFF',
+      fontWeight: theme.typography.weights.bold,
     },
     warningContainer: {
       padding: theme.spacing.md,
-      backgroundColor: theme.colors.warning + '20', // Add transparency
+      backgroundColor: theme.colors.warning + '15',
       borderRadius: theme.borderRadius.md,
       borderWidth: 1,
-      borderColor: theme.colors.warning,
+      borderColor: theme.colors.warning + '40',
       marginTop: theme.spacing.sm,
+      ...theme.shadows.sm,
     },
     warningText: {
       color: theme.colors.warning,
       fontSize: theme.typography.sizes.sm,
       textAlign: 'center',
+      fontWeight: theme.typography.weights.medium,
     },
     headerTitleRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: theme.spacing.sm,
+      marginBottom: theme.spacing.md,
     },
     addHeaderButton: {
-      backgroundColor: theme.colors.success,
+      backgroundColor: theme.colors.primary,
       paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.xs,
+      paddingVertical: theme.spacing.sm,
       borderRadius: theme.borderRadius.md,
+      minHeight: 36,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...theme.shadows.sm,
     },
     addHeaderButtonText: {
       color: '#FFFFFF',
-      fontSize: theme.typography.sizes.xs,
-      fontWeight: theme.typography.weights.medium,
+      fontSize: theme.typography.sizes.sm,
+      fontWeight: theme.typography.weights.semibold,
     },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: theme.spacing.sm,
+      marginBottom: theme.spacing.md,
       gap: theme.spacing.sm,
     },
     headerInput: {
-      borderWidth: 1,
+      height: 44,
+      borderWidth: 2,
       borderColor: theme.colors.border,
       borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
       fontSize: theme.typography.sizes.sm,
       backgroundColor: theme.colors.surface,
       color: theme.colors.text,
+      ...theme.shadows.sm,
     },
     headerFullInput: {
       flex: 1,
     },
     removeHeaderButton: {
       backgroundColor: theme.colors.error,
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      width: 36,
+      height: 36,
+      borderRadius: theme.borderRadius.md,
       justifyContent: 'center',
       alignItems: 'center',
+      ...theme.shadows.sm,
     },
     removeHeaderButtonText: {
       color: '#FFFFFF',
@@ -693,20 +846,28 @@ const createStyles = (theme: any) =>
     },
     noHeadersText: {
       color: theme.colors.textSecondary,
-      fontSize: theme.typography.sizes.xs,
+      fontSize: theme.typography.sizes.sm,
       fontStyle: 'italic',
       textAlign: 'center',
-      paddingVertical: theme.spacing.sm,
+      paddingVertical: theme.spacing.md,
+      backgroundColor: theme.colors.surfaceSecondary,
+      borderRadius: theme.borderRadius.md,
+      marginVertical: theme.spacing.xs,
     },
     payloadInput: {
-      minHeight: 80,
+      minHeight: 100,
       textAlignVertical: 'top',
+      paddingTop: theme.spacing.md,
     },
     helperText: {
       color: theme.colors.textSecondary,
       fontSize: theme.typography.sizes.xs,
-      marginTop: theme.spacing.xs,
+      marginTop: theme.spacing.sm,
       fontStyle: 'italic',
+      lineHeight: theme.typography.lineHeights.relaxed * theme.typography.sizes.xs,
+      backgroundColor: theme.colors.surfaceSecondary,
+      padding: theme.spacing.sm,
+      borderRadius: theme.borderRadius.sm,
     },
   });
 

@@ -36,6 +36,7 @@
 - [x] 3. Redesign header with theme toggle
 
   - [x] 3.1 Create enhanced Header component with modern design
+
     - Implement new header layout with improved typography and spacing
     - Add theme toggle switch with sun/moon icons
     - Include smooth theme transition animations
@@ -49,7 +50,7 @@
     - Write unit tests for theme toggle operations and persistence
     - _Requirements: 3.1, 3.4, 3.5, 5.2_
 
-- [-] 4. Redesign EndpointConfiguration component with collapsible sections
+- [ ] 4. Redesign EndpointConfiguration component with collapsible sections
 
   - [x] 4.1 Refactor EndpointConfiguration to use CollapsibleSection components
     - Wrap enrollment configuration in CollapsibleSection component
@@ -58,7 +59,7 @@
     - Write unit tests for collapsible endpoint configuration behavior
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 4.2_
 
-  - [ ] 4.2 Apply modern form styling to configuration inputs
+  - [x] 4.2 Apply modern form styling to configuration inputs
     - Update TextInput components with modern styling and focus states
     - Enhance method selector buttons with new design
     - Improve header input styling and add/remove button design
