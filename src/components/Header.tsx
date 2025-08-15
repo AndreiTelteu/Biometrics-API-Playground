@@ -6,12 +6,13 @@
 import React from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
 } from 'react-native';
 import { useTheme } from '../theme';
+import { AnimatedView } from './AnimatedView';
+import { AnimatedText } from './AnimatedText';
 
 export interface HeaderProps {
   title?: string;
@@ -54,11 +55,29 @@ export const Header: React.FC<HeaderProps> = ({
   const styles = createStyles(theme);
 
   return (
-    <View style={styles.container}>
+    <AnimatedView
+      style={styles.container}
+      lightBackgroundColor={theme.colors.surface}
+      darkBackgroundColor={theme.colors.surface}
+      lightBorderColor={theme.colors.border}
+      darkBorderColor={theme.colors.border}
+    >
       <View style={styles.content}>
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+          <AnimatedText
+            style={styles.title}
+            lightColor={theme.colors.text}
+            darkColor={theme.colors.text}
+          >
+            {title}
+          </AnimatedText>
+          <AnimatedText
+            style={styles.subtitle}
+            lightColor={theme.colors.textSecondary}
+            darkColor={theme.colors.textSecondary}
+          >
+            {subtitle}
+          </AnimatedText>
         </View>
         
         <TouchableOpacity
@@ -81,23 +100,21 @@ export const Header: React.FC<HeaderProps> = ({
                 { transform: [{ translateX: toggleTranslateX }] },
               ]}
             >
-              <Text style={styles.themeToggleIcon}>
+              <AnimatedText style={styles.themeToggleIcon}>
                 {isDark ? '🌙' : '☀️'}
-              </Text>
+              </AnimatedText>
             </Animated.View>
           </Animated.View>
         </TouchableOpacity>
       </View>
-    </View>
+    </AnimatedView>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
       paddingTop: 20,
       shadowColor: theme.colors.text,
       shadowOffset: { width: 0, height: 2 },
@@ -121,14 +138,12 @@ const createStyles = (theme: any) =>
     title: {
       fontSize: 24,
       fontWeight: '700',
-      color: theme.colors.text,
       textAlign: 'center',
       marginBottom: 4,
       lineHeight: 28,
     },
     subtitle: {
       fontSize: 16,
-      color: theme.colors.textSecondary,
       textAlign: 'center',
       lineHeight: 20,
       maxWidth: 280,

@@ -13,3 +13,8 @@ export { CollapsibleSection } from './CollapsibleSection';
 export { Card } from './Card';
 export { Button } from './Button';
 export { Header } from './Header';
+export { AnimatedView } from './AnimatedView';
+export { AnimatedText } from './AnimatedText';
+export { AnimatedTextInput } from './AnimatedTextInput';
+export { LoadingIndicator } from './LoadingIndicator';
+export { LoadingOverlay } from './LoadingOverlay';

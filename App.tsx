@@ -13,6 +13,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { AnimatedView } from './src/components/AnimatedView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import theme provider and hook
@@ -411,7 +412,11 @@ function AppContent(): React.JSX.Element {
   const styles = createStyles(theme);
 
   return (
-    <View style={styles.container}>
+    <AnimatedView
+      style={styles.container}
+      lightBackgroundColor={theme.colors.background}
+      darkBackgroundColor={theme.colors.background}
+    >
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.surface} />
       
       <Header />
@@ -421,24 +426,42 @@ function AppContent(): React.JSX.Element {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.section}>
+        <AnimatedView
+          style={styles.section}
+          lightBackgroundColor={theme.colors.surface}
+          darkBackgroundColor={theme.colors.surface}
+          lightBorderColor={theme.colors.border}
+          darkBorderColor={theme.colors.border}
+        >
           <BiometricStatusDisplay
             available={biometricStatus.available}
             biometryType={biometricStatus.biometryType}
             keysExist={keysExist}
             error={biometricStatus.error}
           />
-        </View>
+        </AnimatedView>
 
-        <View style={styles.section}>
+        <AnimatedView
+          style={styles.section}
+          lightBackgroundColor={theme.colors.surface}
+          darkBackgroundColor={theme.colors.surface}
+          lightBorderColor={theme.colors.border}
+          darkBorderColor={theme.colors.border}
+        >
           <EndpointConfiguration
             enrollConfig={enrollEndpoint}
             validateConfig={validateEndpoint}
             onConfigChange={saveEndpointConfiguration}
           />
-        </View>
+        </AnimatedView>
 
-        <View style={styles.section}>
+        <AnimatedView
+          style={styles.section}
+          lightBackgroundColor={theme.colors.surface}
+          darkBackgroundColor={theme.colors.surface}
+          lightBorderColor={theme.colors.border}
+          darkBorderColor={theme.colors.border}
+        >
           <BiometricActions
             onEnroll={handleEnroll}
             onValidate={handleValidate}
@@ -448,17 +471,23 @@ function AppContent(): React.JSX.Element {
             biometricAvailable={biometricStatus.available}
             endpointsConfigured={!!(enrollEndpoint.url && validateEndpoint.url)}
           />
-        </View>
+        </AnimatedView>
 
-        <View style={styles.section}>
+        <AnimatedView
+          style={styles.section}
+          lightBackgroundColor={theme.colors.surface}
+          darkBackgroundColor={theme.colors.surface}
+          lightBorderColor={theme.colors.border}
+          darkBorderColor={theme.colors.border}
+        >
           <StatusLog
             logs={logs}
             currentOperation={currentOperation || undefined}
             isLoading={isLoading}
           />
-        </View>
+        </AnimatedView>
       </ScrollView>
-    </View>
+    </AnimatedView>
   );
 }
 
@@ -474,7 +503,6 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     scrollView: {
       flex: 1,
@@ -486,11 +514,9 @@ const createStyles = (theme: any) =>
     section: {
       marginBottom: theme.spacing.md,
       marginHorizontal: theme.spacing.md,
-      backgroundColor: theme.colors.surface,
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.lg,
       borderWidth: 1,
-      borderColor: theme.colors.border,
       ...theme.shadows.md,
     },
   });

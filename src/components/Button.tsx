@@ -3,7 +3,7 @@
  * Enhanced button component with modern styling, variants, and animations
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -77,6 +77,44 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme, variant, size, disabled, loading, fullWidth);
+  
+  // Animation values for press feedback
+  const scaleAnimation = useRef(new Animated.Value(1)).current;
+  const opacityAnimation = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    if (!disabled && !loading) {
+      Animated.parallel([
+        Animated.timing(scaleAnimation, {
+          toValue: 0.95,
+          duration: theme.animations.durations.fast,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnimation, {
+          toValue: 0.8,
+          duration: theme.animations.durations.fast,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  };
+
+  const handlePressOut = () => {
+    if (!disabled && !loading) {
+      Animated.parallel([
+        Animated.timing(scaleAnimation, {
+          toValue: 1,
+          duration: theme.animations.durations.fast,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnimation, {
+          toValue: 1,
+          duration: theme.animations.durations.fast,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  };
 
   const handlePress = () => {
     if (!disabled && !loading && onPress) {
@@ -87,32 +125,43 @@ export const Button: React.FC<ButtonProps> = ({
   const isInteractionDisabled = disabled || loading;
 
   return (
-    <TouchableOpacity
-      style={[styles.button, style]}
-      onPress={handlePress}
-      disabled={isInteractionDisabled}
-      activeOpacity={isInteractionDisabled ? 1 : activeOpacity}
-      testID={testID}
-      accessible={true}
-      accessibilityRole="button"
-      accessibilityState={{
-        disabled: isInteractionDisabled,
-        busy: loading,
-      }}
-      accessibilityLabel={title}
+    <Animated.View
+      style={[
+        {
+          transform: [{ scale: scaleAnimation }],
+          opacity: opacityAnimation,
+        },
+      ]}
     >
-      {loading && (
-        <ActivityIndicator
-          size="small"
-          color={styles.loadingIndicator.color}
-          style={styles.loadingIndicator}
-          testID={testID ? `${testID}-loading` : undefined}
-        />
-      )}
-      <Text style={[styles.text, textStyle]} testID={testID ? `${testID}-text` : undefined}>
-        {title}
-      </Text>
-    </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.button, style]}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={isInteractionDisabled}
+        activeOpacity={1} // We handle opacity with our animation
+        testID={testID}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityState={{
+          disabled: isInteractionDisabled,
+          busy: loading,
+        }}
+        accessibilityLabel={title}
+      >
+        {loading && (
+          <ActivityIndicator
+            size="small"
+            color={styles.loadingIndicator.color}
+            style={styles.loadingIndicator}
+            testID={testID ? `${testID}-loading` : undefined}
+          />
+        )}
+        <Text style={[styles.text, textStyle]} testID={testID ? `${testID}-text` : undefined}>
+          {title}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 

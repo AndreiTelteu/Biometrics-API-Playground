@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useContext, ReactNode } from 'react';
+import { Animated } from 'react-native';
 import { Theme, ThemeMode } from './theme';
 
 export interface ThemeContextType {
@@ -12,6 +13,8 @@ export interface ThemeContextType {
   themeMode: ThemeMode;
   toggleTheme: () => void;
   setTheme: (mode: ThemeMode) => void;
+  themeTransition: Animated.Value;
+  isTransitioning: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
