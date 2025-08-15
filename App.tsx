@@ -9,13 +9,15 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   StatusBar,
   StyleSheet,
-  useColorScheme,
   View,
-  Text,
   ScrollView,
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Import theme provider and hook
+import { ThemeProvider } from './src/theme/ThemeProvider';
+import { useTheme } from './src/theme';
 
 // Import components
 import {
@@ -23,6 +25,7 @@ import {
   EndpointConfiguration,
   BiometricActions,
   StatusLog,
+  Header,
 } from './src/components';
 
 // Import services
@@ -46,8 +49,8 @@ const STORAGE_KEYS = {
   VALIDATE_ENDPOINT: '@biometrics_playground:validate_endpoint',
 };
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+function AppContent(): React.JSX.Element {
+  const { theme, isDark } = useTheme();
 
   // State management for biometric status, configuration, and logs
   const [biometricStatus, setBiometricStatus] = useState<BiometricStatus>({
@@ -405,20 +408,19 @@ function App(): React.JSX.Element {
     initialize();
   }, [loadEndpointConfiguration, initializeBiometrics]);
 
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.surface} />
+      
+      <Header />
+      
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Biometrics Playground</Text>
-          <Text style={styles.subtitle}>
-            Test biometric authentication and backend integration
-          </Text>
-        </View>
-
         <View style={styles.section}>
           <BiometricStatusDisplay
             available={biometricStatus.available}
@@ -460,52 +462,37 @@ function App(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  header: {
-    padding: 20,
-    paddingBottom: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  section: {
-    marginTop: 16,
-    marginHorizontal: 16,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+function App(): React.JSX.Element {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
+
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-});
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingBottom: theme.spacing.xl,
+      paddingTop: theme.spacing.md,
+    },
+    section: {
+      marginBottom: theme.spacing.md,
+      marginHorizontal: theme.spacing.md,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      ...theme.shadows.md,
+    },
+  });
 
 export default App;
