@@ -3,6 +3,7 @@
  * 
  * Displays current biometric sensor availability, type, key existence status,
  * and error states with detailed error messages and visual indicators.
+ * Redesigned with modern card styling, improved visual hierarchy, and theme support.
  */
 
 import React from 'react';
@@ -12,6 +13,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { BiometryType } from '../types';
+import { useTheme } from '../theme';
+import Card from './Card';
 
 interface BiometricStatusDisplayProps {
   available: boolean;
@@ -26,6 +29,9 @@ const BiometricStatusDisplay: React.FC<BiometricStatusDisplayProps> = ({
   keysExist,
   error,
 }) => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
   const getBiometryTypeDisplayName = (type: BiometryType): string => {
     switch (type) {
       case 'TouchID':
@@ -48,85 +54,133 @@ const BiometricStatusDisplay: React.FC<BiometricStatusDisplayProps> = ({
     return exists ? '🔑' : '🚫';
   };
 
+  const getBiometryTypeIcon = (type: BiometryType): string => {
+    switch (type) {
+      case 'TouchID':
+        return '👆';
+      case 'FaceID':
+        return '👤';
+      case 'Biometrics':
+        return '🔐';
+      default:
+        return '📱';
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <Card variant="elevated" padding="lg" style={styles.container}>
       <Text style={styles.title}>Biometric Status</Text>
       
-      {/* Sensor Availability Status */}
-      <View style={styles.statusSection}>
-        <View style={styles.statusRow}>
-          <Text style={styles.statusIcon}>
-            {getStatusIcon(available, !!error)}
-          </Text>
-          <View style={styles.statusContent}>
-            <Text style={styles.statusLabel}>Sensor Availability:</Text>
-            <Text style={[
-              styles.statusValue,
-              available ? styles.successText : styles.warningText
+      {/* Main Status Section */}
+      <View style={styles.statusGrid}>
+        {/* Sensor Availability Status */}
+        <View style={styles.statusCard}>
+          <View style={styles.statusHeader}>
+            <View style={[
+              styles.statusIconContainer,
+              available && !error ? styles.successIconContainer : 
+              error ? styles.errorIconContainer : styles.warningIconContainer
             ]}>
-              {available ? 'Available' : 'Not Available'}
-            </Text>
+              <Text style={styles.statusIcon}>
+                {getStatusIcon(available, !!error)}
+              </Text>
+            </View>
+            <View style={styles.statusContent}>
+              <Text style={styles.statusLabel}>Sensor Availability</Text>
+              <Text style={[
+                styles.statusValue,
+                available && !error ? styles.successText : 
+                error ? styles.errorText : styles.warningText
+              ]}>
+                {available ? 'Available' : 'Not Available'}
+              </Text>
+            </View>
           </View>
         </View>
 
         {/* Biometry Type Display */}
         {available && biometryType && (
-          <View style={styles.statusRow}>
-            <Text style={styles.statusIcon}>📱</Text>
-            <View style={styles.statusContent}>
-              <Text style={styles.statusLabel}>Sensor Type:</Text>
-              <Text style={styles.statusValue}>
-                {getBiometryTypeDisplayName(biometryType)}
-              </Text>
+          <View style={styles.statusCard}>
+            <View style={styles.statusHeader}>
+              <View style={[styles.statusIconContainer, styles.infoIconContainer]}>
+                <Text style={styles.statusIcon}>
+                  {getBiometryTypeIcon(biometryType)}
+                </Text>
+              </View>
+              <View style={styles.statusContent}>
+                <Text style={styles.statusLabel}>Sensor Type</Text>
+                <Text style={[styles.statusValue, styles.infoText]}>
+                  {getBiometryTypeDisplayName(biometryType)}
+                </Text>
+              </View>
             </View>
           </View>
         )}
 
         {/* Key Existence Status */}
-        <View style={styles.statusRow}>
-          <Text style={styles.statusIcon}>
-            {getKeyStatusIcon(keysExist)}
-          </Text>
-          <View style={styles.statusContent}>
-            <Text style={styles.statusLabel}>Biometric Keys:</Text>
-            <Text style={[
-              styles.statusValue,
-              keysExist ? styles.successText : styles.infoText
+        <View style={styles.statusCard}>
+          <View style={styles.statusHeader}>
+            <View style={[
+              styles.statusIconContainer,
+              keysExist ? styles.successIconContainer : styles.infoIconContainer
             ]}>
-              {keysExist ? 'Keys Exist' : 'No Keys Found'}
-            </Text>
+              <Text style={styles.statusIcon}>
+                {getKeyStatusIcon(keysExist)}
+              </Text>
+            </View>
+            <View style={styles.statusContent}>
+              <Text style={styles.statusLabel}>Biometric Keys</Text>
+              <Text style={[
+                styles.statusValue,
+                keysExist ? styles.successText : styles.infoText
+              ]}>
+                {keysExist ? 'Keys Exist' : 'No Keys Found'}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
 
       {/* Error State Display */}
       {error && (
-        <View style={styles.errorSection}>
+        <Card variant="outlined" padding="md" style={styles.errorCard}>
           <View style={styles.errorHeader}>
-            <Text style={styles.errorIcon}>⚠️</Text>
+            <View style={[styles.statusIconContainer, styles.errorIconContainer]}>
+              <Text style={styles.statusIcon}>⚠️</Text>
+            </View>
             <Text style={styles.errorTitle}>Error Details</Text>
           </View>
           <Text style={styles.errorMessage}>{error}</Text>
-        </View>
+        </Card>
       )}
 
       {/* Capability Summary */}
-      <View style={styles.summarySection}>
+      <Card variant="outlined" padding="md" style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>Capability Summary</Text>
         <View style={styles.capabilityList}>
           <View style={styles.capabilityItem}>
-            <Text style={styles.capabilityIcon}>
-              {available ? '✅' : '❌'}
-            </Text>
+            <View style={[
+              styles.capabilityIconContainer,
+              available ? styles.successIconContainer : styles.errorIconContainer
+            ]}>
+              <Text style={styles.capabilityIcon}>
+                {available ? '✅' : '❌'}
+              </Text>
+            </View>
             <Text style={styles.capabilityText}>
               Biometric authentication {available ? 'supported' : 'not supported'}
             </Text>
           </View>
           
           <View style={styles.capabilityItem}>
-            <Text style={styles.capabilityIcon}>
-              {keysExist ? '✅' : '⚠️'}
-            </Text>
+            <View style={[
+              styles.capabilityIconContainer,
+              keysExist ? styles.successIconContainer : styles.warningIconContainer
+            ]}>
+              <Text style={styles.capabilityIcon}>
+                {keysExist ? '✅' : '⚠️'}
+              </Text>
+            </View>
             <Text style={styles.capabilityText}>
               {keysExist ? 'Ready for validation' : 'Enrollment required'}
             </Text>
@@ -134,131 +188,155 @@ const BiometricStatusDisplay: React.FC<BiometricStatusDisplayProps> = ({
           
           {available && !keysExist && (
             <View style={styles.capabilityItem}>
-              <Text style={styles.capabilityIcon}>💡</Text>
+              <View style={[styles.capabilityIconContainer, styles.infoIconContainer]}>
+                <Text style={styles.capabilityIcon}>💡</Text>
+              </View>
               <Text style={styles.capabilityText}>
                 Tap "Enroll" to create biometric keys
               </Text>
             </View>
           )}
         </View>
-      </View>
-    </View>
+      </Card>
+    </Card>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginVertical: 8,
+    marginVertical: theme.spacing.sm,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
+    fontSize: theme.typography.sizes['2xl'],
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.lg,
     textAlign: 'center',
+    lineHeight: theme.typography.lineHeights.tight * theme.typography.sizes['2xl'],
   },
-  statusSection: {
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 12,
+  statusGrid: {
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  statusCard: {
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
     borderWidth: 1,
-    borderColor: '#e1e5e9',
+    borderColor: theme.colors.border,
   },
-  statusRow: {
+  statusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+  },
+  statusIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.md,
+  },
+  successIconContainer: {
+    backgroundColor: `${theme.colors.success}15`,
+  },
+  warningIconContainer: {
+    backgroundColor: `${theme.colors.warning}15`,
+  },
+  errorIconContainer: {
+    backgroundColor: `${theme.colors.error}15`,
+  },
+  infoIconContainer: {
+    backgroundColor: `${theme.colors.info}15`,
   },
   statusIcon: {
     fontSize: 20,
-    marginRight: 12,
-    width: 24,
     textAlign: 'center',
   },
   statusContent: {
     flex: 1,
   },
   statusLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6c757d',
-    marginBottom: 2,
+    fontSize: theme.typography.sizes.sm,
+    fontWeight: theme.typography.weights.medium,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.xs,
+    lineHeight: theme.typography.lineHeights.normal * theme.typography.sizes.sm,
   },
   statusValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#495057',
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text,
+    lineHeight: theme.typography.lineHeights.tight * theme.typography.sizes.lg,
   },
   successText: {
-    color: '#28a745',
+    color: theme.colors.success,
   },
   warningText: {
-    color: '#ffc107',
+    color: theme.colors.warning,
+  },
+  errorText: {
+    color: theme.colors.error,
   },
   infoText: {
-    color: '#17a2b8',
+    color: theme.colors.info,
   },
-  errorSection: {
-    backgroundColor: '#f8d7da',
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#f5c6cb',
+  errorCard: {
+    marginBottom: theme.spacing.lg,
+    borderColor: theme.colors.error,
+    backgroundColor: `${theme.colors.error}08`,
   },
   errorHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  errorIcon: {
-    fontSize: 18,
-    marginRight: 8,
+    marginBottom: theme.spacing.sm,
   },
   errorTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#721c24',
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.error,
+    lineHeight: theme.typography.lineHeights.tight * theme.typography.sizes.lg,
   },
   errorMessage: {
-    fontSize: 14,
-    color: '#721c24',
-    lineHeight: 20,
+    fontSize: theme.typography.sizes.base,
+    color: theme.colors.error,
+    lineHeight: theme.typography.lineHeights.relaxed * theme.typography.sizes.base,
   },
-  summarySection: {
-    backgroundColor: '#e7f3ff',
-    borderRadius: 6,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#b8daff',
+  summaryCard: {
+    borderColor: theme.colors.info,
+    backgroundColor: `${theme.colors.info}08`,
   },
   summaryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#004085',
-    marginBottom: 8,
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.info,
+    marginBottom: theme.spacing.md,
+    lineHeight: theme.typography.lineHeights.tight * theme.typography.sizes.lg,
   },
   capabilityList: {
-    gap: 6,
+    gap: theme.spacing.sm,
   },
   capabilityItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  capabilityIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.md,
+  },
   capabilityIcon: {
     fontSize: 16,
-    marginRight: 8,
-    width: 20,
     textAlign: 'center',
   },
   capabilityText: {
-    fontSize: 14,
-    color: '#004085',
+    fontSize: theme.typography.sizes.base,
+    color: theme.colors.text,
     flex: 1,
+    lineHeight: theme.typography.lineHeights.normal * theme.typography.sizes.base,
   },
 });
 

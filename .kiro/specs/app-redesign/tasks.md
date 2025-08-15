@@ -53,6 +53,7 @@
 - [ ] 4. Redesign EndpointConfiguration component with collapsible sections
 
   - [x] 4.1 Refactor EndpointConfiguration to use CollapsibleSection components
+
     - Wrap enrollment configuration in CollapsibleSection component
     - Wrap validation configuration in CollapsibleSection component
     - Maintain all existing configuration functionality (URL, method, headers, custom payload)
@@ -60,6 +61,7 @@
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 4.2_
 
   - [x] 4.2 Apply modern form styling to configuration inputs
+
     - Update TextInput components with modern styling and focus states
     - Enhance method selector buttons with new design
     - Improve header input styling and add/remove button design
@@ -74,8 +76,7 @@
     - Write unit tests for error indication functionality
     - _Requirements: 1.5, 4.5_
 
-- [ ] 5. Redesign BiometricStatusDisplay component
-
+- [x] 5. Redesign BiometricStatusDisplay component
   - Apply modern card styling and improved visual hierarchy
   - Update status icons with modern iconography
   - Enhance color coding with theme-aware colors

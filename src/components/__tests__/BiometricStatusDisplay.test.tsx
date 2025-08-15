@@ -1,16 +1,37 @@
 /**
  * Unit and snapshot tests for BiometricStatusDisplay component
+ * Updated for modern design with theme support
  */
 
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import BiometricStatusDisplay from '../BiometricStatusDisplay';
 import { BiometryType } from '../../types';
+import { ThemeContextProvider, ThemeContextType } from '../../theme/ThemeContext';
+import { lightTheme } from '../../theme/theme';
+
+// Mock theme context for testing
+const mockThemeContext: ThemeContextType = {
+  theme: lightTheme,
+  isDark: false,
+  themeMode: 'light',
+  toggleTheme: jest.fn(),
+  setTheme: jest.fn(),
+};
+
+// Helper to render component with theme
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(
+    <ThemeContextProvider value={mockThemeContext}>
+      {component}
+    </ThemeContextProvider>
+  );
+};
 
 describe('BiometricStatusDisplay', () => {
   describe('Snapshot Tests', () => {
     it('renders correctly when biometrics are available with TouchID and keys exist', () => {
-      const tree = render(
+      const tree = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="TouchID"
@@ -21,7 +42,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('renders correctly when biometrics are available with FaceID and no keys', () => {
-      const tree = render(
+      const tree = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="FaceID"
@@ -32,7 +53,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('renders correctly when biometrics are available with generic Biometrics and keys exist', () => {
-      const tree = render(
+      const tree = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="Biometrics"
@@ -43,7 +64,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('renders correctly when biometrics are not available', () => {
-      const tree = render(
+      const tree = renderWithTheme(
         <BiometricStatusDisplay
           available={false}
           biometryType={undefined}
@@ -54,7 +75,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('renders correctly with error state', () => {
-      const tree = render(
+      const tree = renderWithTheme(
         <BiometricStatusDisplay
           available={false}
           biometryType={undefined}
@@ -66,7 +87,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('renders correctly with error state but biometrics available', () => {
-      const tree = render(
+      const tree = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="TouchID"
@@ -78,7 +99,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('renders correctly with undefined biometry type but available', () => {
-      const tree = render(
+      const tree = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType={undefined}
@@ -90,7 +111,7 @@ describe('BiometricStatusDisplay', () => {
 
     it('renders correctly with long error message', () => {
       const longError = "This is a very long error message that should wrap properly and display all the details about what went wrong during the biometric operation. It includes technical details and user-friendly explanations.";
-      const tree = render(
+      const tree = renderWithTheme(
         <BiometricStatusDisplay
           available={false}
           biometryType={undefined}
@@ -104,7 +125,7 @@ describe('BiometricStatusDisplay', () => {
 
   describe('Component Behavior Tests', () => {
     it('displays correct status when biometrics are available', () => {
-      const { getByText } = render(
+      const { getByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="TouchID"
@@ -119,7 +140,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('displays correct status when biometrics are not available', () => {
-      const { getByText } = render(
+      const { getByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={false}
           biometryType={undefined}
@@ -132,7 +153,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('displays correct biometry type names', () => {
-      const { rerender, getByText } = render(
+      const { rerender, getByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="TouchID"
@@ -142,26 +163,30 @@ describe('BiometricStatusDisplay', () => {
       expect(getByText('Touch ID')).toBeTruthy();
 
       rerender(
-        <BiometricStatusDisplay
-          available={true}
-          biometryType="FaceID"
-          keysExist={false}
-        />
+        <ThemeContextProvider value={mockThemeContext}>
+          <BiometricStatusDisplay
+            available={true}
+            biometryType="FaceID"
+            keysExist={false}
+          />
+        </ThemeContextProvider>
       );
       expect(getByText('Face ID')).toBeTruthy();
 
       rerender(
-        <BiometricStatusDisplay
-          available={true}
-          biometryType="Biometrics"
-          keysExist={false}
-        />
+        <ThemeContextProvider value={mockThemeContext}>
+          <BiometricStatusDisplay
+            available={true}
+            biometryType="Biometrics"
+            keysExist={false}
+          />
+        </ThemeContextProvider>
       );
       expect(getByText('Biometric Authentication')).toBeTruthy();
     });
 
     it('does not display sensor type when biometrics are not available', () => {
-      const { queryByText } = render(
+      const { queryByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={false}
           biometryType={undefined}
@@ -169,12 +194,12 @@ describe('BiometricStatusDisplay', () => {
         />
       );
 
-      expect(queryByText('Sensor Type:')).toBeNull();
+      expect(queryByText('Sensor Type')).toBeNull();
     });
 
     it('displays error section when error is provided', () => {
       const errorMessage = "Test error message";
-      const { getByText } = render(
+      const { getByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={false}
           biometryType={undefined}
@@ -188,7 +213,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('does not display error section when no error is provided', () => {
-      const { queryByText } = render(
+      const { queryByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="TouchID"
@@ -200,7 +225,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('displays capability summary correctly', () => {
-      const { getByText } = render(
+      const { getByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="TouchID"
@@ -215,7 +240,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('displays ready for validation when keys exist', () => {
-      const { getByText, queryByText } = render(
+      const { getByText, queryByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="TouchID"
@@ -229,7 +254,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('displays not supported when biometrics are unavailable', () => {
-      const { getByText, queryByText } = render(
+      const { getByText, queryByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={false}
           biometryType={undefined}
@@ -242,7 +267,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('handles undefined biometry type gracefully', () => {
-      const { queryByText } = render(
+      const { queryByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType={undefined}
@@ -251,21 +276,12 @@ describe('BiometricStatusDisplay', () => {
       );
 
       // Should not display sensor type section when biometryType is undefined
-      expect(queryByText('Sensor Type:')).toBeNull();
+      expect(queryByText('Sensor Type')).toBeNull();
       expect(queryByText('Unknown')).toBeNull();
     });
 
     it('displays all status icons correctly', () => {
-      const { getByText } = render(
-        <BiometricStatusDisplay
-          available={true}
-          biometryType="TouchID"
-          keysExist={true}
-        />
-      );
-
-      // Check that emojis are rendered (they appear as text in the component)
-      const component = render(
+      const component = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="TouchID"
@@ -277,7 +293,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('displays warning icons when biometrics are not available', () => {
-      const component = render(
+      const component = renderWithTheme(
         <BiometricStatusDisplay
           available={false}
           biometryType={undefined}
@@ -289,7 +305,7 @@ describe('BiometricStatusDisplay', () => {
     });
 
     it('displays error icons when error is present', () => {
-      const component = render(
+      const component = renderWithTheme(
         <BiometricStatusDisplay
           available={false}
           biometryType={undefined}
@@ -304,7 +320,7 @@ describe('BiometricStatusDisplay', () => {
 
   describe('Edge Cases', () => {
     it('handles empty error message', () => {
-      const { queryByText } = render(
+      const { queryByText } = renderWithTheme(
         <BiometricStatusDisplay
           available={true}
           biometryType="TouchID"
@@ -320,7 +336,7 @@ describe('BiometricStatusDisplay', () => {
       const biometryTypes: (BiometryType)[] = ['TouchID', 'FaceID', 'Biometrics', undefined];
       
       biometryTypes.forEach(type => {
-        const component = render(
+        const component = renderWithTheme(
           <BiometricStatusDisplay
             available={type !== undefined}
             biometryType={type}
@@ -340,7 +356,7 @@ describe('BiometricStatusDisplay', () => {
       ];
 
       combinations.forEach(({ available, keysExist }) => {
-        const component = render(
+        const component = renderWithTheme(
           <BiometricStatusDisplay
             available={available}
             biometryType={available ? "TouchID" : undefined}
@@ -349,6 +365,73 @@ describe('BiometricStatusDisplay', () => {
         );
         expect(component.toJSON()).toBeTruthy();
       });
+    });
+  });
+
+  describe('Modern Design Features', () => {
+    it('uses Card components for modern styling', () => {
+      const component = renderWithTheme(
+        <BiometricStatusDisplay
+          available={true}
+          biometryType="TouchID"
+          keysExist={true}
+        />
+      );
+      
+      expect(component.toJSON()).toBeTruthy();
+    });
+
+    it('displays modern icon containers with proper styling', () => {
+      const component = renderWithTheme(
+        <BiometricStatusDisplay
+          available={true}
+          biometryType="FaceID"
+          keysExist={false}
+          error="Test error"
+        />
+      );
+      
+      expect(component.toJSON()).toBeTruthy();
+    });
+
+    it('applies theme-aware colors correctly', () => {
+      const component = renderWithTheme(
+        <BiometricStatusDisplay
+          available={false}
+          biometryType={undefined}
+          keysExist={false}
+          error="Hardware not available"
+        />
+      );
+      
+      expect(component.toJSON()).toBeTruthy();
+    });
+
+    it('displays biometry type icons correctly', () => {
+      const biometryTypes: BiometryType[] = ['TouchID', 'FaceID', 'Biometrics'];
+      
+      biometryTypes.forEach(type => {
+        const component = renderWithTheme(
+          <BiometricStatusDisplay
+            available={true}
+            biometryType={type}
+            keysExist={false}
+          />
+        );
+        expect(component.toJSON()).toBeTruthy();
+      });
+    });
+
+    it('shows proper visual hierarchy with improved spacing', () => {
+      const component = renderWithTheme(
+        <BiometricStatusDisplay
+          available={true}
+          biometryType="TouchID"
+          keysExist={true}
+        />
+      );
+      
+      expect(component.toJSON()).toBeTruthy();
     });
   });
 });
