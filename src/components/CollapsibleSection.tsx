@@ -4,13 +4,12 @@
  * Optimized for performance with hardware acceleration and reduced motion support
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Platform,
   InteractionManager,
 } from 'react-native';
 import Animated, {
@@ -22,13 +21,10 @@ import Animated, {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../theme';
 import {
-  createOptimizedTiming,
-  createAccessibleAnimation,
   isReducedMotionEnabled,
   subscribeToReducedMotion,
   startAnimationProfiling,
   endAnimationProfiling,
-  cleanupAnimation,
 } from '../utils/animationUtils';
 
 // Note: Using Reanimated instead of LayoutAnimation for New Architecture compatibility
@@ -136,32 +132,15 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   // Handle toggle with Reanimated animations
   const handleToggle = () => {
     const newExpanded = !isExpanded;
-    const animationId = `collapsible-${id}-${Date.now()}`;
 
     // Use InteractionManager to ensure smooth animations
     InteractionManager.runAfterInteractions(() => {
       const duration = reducedMotion ? 0 : theme.animations.durations.normal;
-      const fastDuration = reducedMotion ? 0 : theme.animations.durations.fast;
-
-      // Start performance profiling
-      if (!reducedMotion) {
-        startAnimationProfiling(animationId, duration);
-      }
 
       // Animate with Reanimated for better performance and New Architecture support
       rotationValue.value = withTiming(newExpanded ? 1 : 0, { duration });
       heightValue.value = withTiming(newExpanded ? 1 : 0, { duration });
-      opacityValue.value = withTiming(
-        newExpanded ? 1 : 0,
-        {
-          duration: fastDuration,
-        },
-        finished => {
-          if (finished && !reducedMotion) {
-            runOnJS(endAnimationProfiling)(animationId);
-          }
-        },
-      );
+      opacityValue.value = withTiming(newExpanded ? 1 : 0, { duration });
     });
 
     setIsExpanded(newExpanded);
