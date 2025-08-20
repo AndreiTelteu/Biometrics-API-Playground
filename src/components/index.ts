@@ -18,3 +18,4 @@ export { AnimatedText } from './AnimatedText';
 export { AnimatedTextInput } from './AnimatedTextInput';
 export { LoadingIndicator } from './LoadingIndicator';
 export { LoadingOverlay } from './LoadingOverlay';
+export { WebControl } from './WebControl';
