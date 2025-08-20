@@ -607,7 +607,7 @@ describe('WebControlBridge', () => {
       const state = bridge.getAppState();
       expect(state.isLoading).toBe(false);
       expect(state.logs.length).toBe(initialLogCount + 1);
-      expect(state.logs[state.logs.length - 1].message).toContain('Operation cancelled');
+      expect(state.logs[state.logs.length - 1].message).toContain('Operation test-operation-123 cancelled by user or system');
       expect(bridge['currentOperationId']).toBeNull();
     });
 

@@ -100,6 +100,38 @@ describe('WebControlBridge', () => {
       bridge['state'].biometricStatus = { available: true, biometryType: 'FaceID' };
     });
 
+    it('should cancel existing operation when starting new enrollment', async () => {
+      // Set up existing operation
+      bridge['currentOperationId'] = 'existing-operation-123';
+      bridge['state'].isLoading = true;
+
+      // Mock biometric service responses
+      const mockPublicKey = 'mock-public-key-12345';
+      mockBiometricService.createKeys.mockResolvedValue({
+        success: true,
+        message: 'Keys created',
+        data: { publicKey: mockPublicKey },
+        timestamp: new Date(),
+      });
+      mockBiometricAPIService.enrollPublicKey.mockResolvedValue({
+        success: true,
+        message: 'Enrollment successful',
+        data: { enrolled: true },
+        timestamp: new Date(),
+      });
+
+      // Start new enrollment
+      const result = await bridge.executeEnrollment(mockEnrollConfig);
+
+      // Should have cancelled previous operation and started new one
+      const state = bridge.getAppState();
+      const logs = state.logs;
+      
+      // Should have log about cancelling previous operation
+      expect(logs.some(log => log.message.includes('Attempted to start enrollment operation while another operation is running'))).toBe(true);
+      expect(result.success).toBe(true);
+    });
+
     it('should execute enrollment successfully with backend', async () => {
       const mockPublicKey = 'mock-public-key-12345';
       const mockCreateKeysResult: OperationResult = {
@@ -550,7 +582,7 @@ describe('WebControlBridge', () => {
       expect(state.isLoading).toBe(false);
       expect(bridge['currentOperationId']).toBeNull();
       expect(state.logs).toHaveLength(1);
-      expect(state.logs[0].message).toContain('Operation cancelled');
+      expect(state.logs[0].message).toContain('Operation test-operation-123 cancelled by user or system');
     });
 
     it('should not cancel when no operation is running', () => {
@@ -560,6 +592,46 @@ describe('WebControlBridge', () => {
 
       const state = bridge.getAppState();
       expect(state.logs).toHaveLength(0);
+    });
+
+    it('should check if operation is running', () => {
+      // No operation running
+      expect(bridge.isOperationRunning()).toBe(false);
+
+      // Set operation running
+      bridge['currentOperationId'] = 'test-operation-123';
+      bridge['state'].isLoading = true;
+      expect(bridge.isOperationRunning()).toBe(true);
+
+      // Clear operation
+      bridge['currentOperationId'] = null;
+      bridge['state'].isLoading = false;
+      expect(bridge.isOperationRunning()).toBe(false);
+    });
+
+    it('should get current operation ID', () => {
+      expect(bridge.getCurrentOperationId()).toBeNull();
+
+      bridge['currentOperationId'] = 'test-operation-123';
+      expect(bridge.getCurrentOperationId()).toBe('test-operation-123');
+    });
+
+    it('should get operation status', () => {
+      // No operation running
+      let status = bridge.getOperationStatus();
+      expect(status.isRunning).toBe(false);
+      expect(status.operationId).toBeNull();
+      expect(status.operationType).toBeNull();
+      expect(status.startTime).toBeNull();
+
+      // Operation running
+      bridge['currentOperationId'] = 'test-operation-123';
+      bridge['state'].isLoading = true;
+      status = bridge.getOperationStatus();
+      expect(status.isRunning).toBe(true);
+      expect(status.operationId).toBe('test-operation-123');
+      expect(status.operationType).toBe('unknown');
+      expect(status.startTime).toBeInstanceOf(Date);
     });
   });
 });

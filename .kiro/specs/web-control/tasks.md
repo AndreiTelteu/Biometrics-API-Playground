@@ -103,7 +103,7 @@
   - Ensure configuration changes are reflected in both interfaces immediately
   - _Requirements: 5.2, 5.3, 7.3, 7.4_
 
-- [ ] 14. Implement simple operation management
+- [x] 14. Implement simple operation management
 
   - Add operation cancellation when new operation is triggered
   - Implement single operation tracking and status management
