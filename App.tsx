@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { StatusBar, StyleSheet, ScrollView, Alert } from 'react-native';
+import { StatusBar, StyleSheet, ScrollView, Alert, TouchableOpacity, Text } from 'react-native';
 import { AnimatedView } from './src/components/AnimatedView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -21,15 +21,17 @@ import EndpointConfiguration from './src/components/EndpointConfiguration';
 import { Header } from './src/components/Header';
 import StatusLog from './src/components/StatusLog';
 import { WebControl } from './src/components/WebControl';
+import { WebControlDebugPanel } from './src/components/WebControlDebugPanel';
 
 // Import services
-import { biometricService, biometricAPIService } from './src/services';
+import { biometricService, biometricAPIService, webServerService } from './src/services';
+import { webControlStateManager } from './src/services/WebControlStateManager';
 
 // Import utilities
-import { useStatusLogger } from './src/utils';
+import { useStatusLogger, webControlLogger, errorHandler, networkResilience } from './src/utils';
 
 // Import types
-import type { BiometricStatus, EndpointConfig } from './src/types';
+import type { BiometricStatus, EndpointConfig, ServerStatus, ErrorDetails } from './src/types';
 
 // Import constants
 import {
@@ -61,6 +63,11 @@ function AppContent(): React.JSX.Element {
     DEFAULT_VALIDATE_ENDPOINT,
   );
 
+  // Web control state
+  const [webControlError, setWebControlError] = useState<string | null>(null);
+  const [isWebControlInitialized, setIsWebControlInitialized] = useState<boolean>(false);
+  const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
+
   // Use status logger hook for operation logging
   const {
     logs,
@@ -77,7 +84,7 @@ function AppContent(): React.JSX.Element {
    */
   const initializeBiometrics = useCallback(async () => {
     try {
-      // logInfo('status', 'Initializing biometric sensors...');
+      webControlLogger.logDebug('bridge', 'Initializing biometric sensors...');
 
       // Check biometric availability
       const status = await biometricService.checkBiometricAvailability();
@@ -94,13 +101,71 @@ function AppContent(): React.JSX.Element {
             status.biometryType
           }, Keys: ${keysExistResult ? 'Present' : 'Not found'}`,
         );
+        
+        webControlLogger.logBridge(
+          'info',
+          'Biometric initialization completed successfully',
+          undefined,
+          undefined,
+          { biometryType: status.biometryType, keysExist: keysExistResult }
+        );
       } else {
-        logError('status', status.error || 'Biometric sensors not available');
+        const errorMsg = status.error || 'Biometric sensors not available';
+        logError('status', errorMsg);
+        webControlLogger.logBridge('error', errorMsg);
       }
     } catch (error) {
       logError('status', 'Failed to initialize biometrics', error);
+      webControlLogger.logError('bridge', error, 'Biometric initialization');
     }
-  }, [logInfo, logSuccess, logError]);
+  }, [logSuccess, logError]);
+
+  /**
+   * Initialize web control system
+   */
+  const initializeWebControl = useCallback(async () => {
+    try {
+      webControlLogger.logState('info', 'Initializing web control system...');
+      
+      // Initialize web control state manager
+      await webControlStateManager.initialize();
+      
+      // Initialize network resilience
+      networkResilience.initialize({
+        maxAttempts: 3,
+        initialDelay: 1000,
+        maxDelay: 10000,
+      });
+      
+      // Setup error handling for web control
+      const removeErrorListener = errorHandler.addErrorListener((error: ErrorDetails) => {
+        if (error.code.startsWith('SERVER_') || 
+            error.code.startsWith('WEBSOCKET_') || 
+            error.code.startsWith('NETWORK_')) {
+          setWebControlError(error.userMessage || error.message);
+          
+          // Clear error after 10 seconds
+          setTimeout(() => {
+            setWebControlError(null);
+          }, 10000);
+        }
+      });
+      
+      setIsWebControlInitialized(true);
+      webControlLogger.logState('info', 'Web control system initialized successfully');
+      
+      // Return cleanup function
+      return () => {
+        removeErrorListener();
+        networkResilience.shutdown();
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      setWebControlError(`Failed to initialize web control: ${errorMsg}`);
+      webControlLogger.logError('state', error, 'Web control initialization');
+      throw error;
+    }
+  }, []);
 
   /**
    * Load endpoint configuration from storage
@@ -157,85 +222,142 @@ function AppContent(): React.JSX.Element {
    * Handle enrollment flow with backend integration
    */
   const handleEnroll = useCallback(async () => {
-    await executeWithLogging(
-      'enroll',
-      'Starting biometric enrollment...',
-      async () => {
-        // Validate biometric availability first
-        if (!biometricStatus.available) {
-          throw new Error(
-            `Biometric sensors not available: ${
-              biometricStatus.error || 'Unknown reason'
-            }`,
-          );
-        }
+    const operationId = webControlStateManager.startOperation('enroll');
+    const startTime = Date.now();
+    
+    webControlLogger.logOperationStart('bridge', 'enrollment', operationId, {
+      endpoint: enrollEndpoint.url,
+      biometricAvailable: biometricStatus.available,
+    });
 
-        // Create biometric keys with user authentication
-        logInfo('enroll', 'Creating biometric keys...');
-        const createKeysResult = await biometricService.createKeys(
-          'Authenticate to create biometric keys for enrollment',
-        );
-
-        if (!createKeysResult.success) {
-          throw new Error(`Key creation failed: ${createKeysResult.message}`);
-        }
-
-        const publicKey = createKeysResult.data.publicKey;
-        logSuccess(
-          'enroll',
-          `Biometric keys created successfully. Public key: ${publicKey.substring(
-            0,
-            50,
-          )}...`,
-        );
-
-        // Update keys exist status
-        setKeysExist(true);
-
-        // Send public key to backend if endpoint is configured
-        if (enrollEndpoint.url) {
-          logInfo(
-            'enroll',
-            `Sending public key to enrollment endpoint: ${enrollEndpoint.url}`,
-          );
-
-          const enrollResult = await biometricAPIService.enrollPublicKey(
-            enrollEndpoint,
-            publicKey,
-          );
-
-          if (!enrollResult.success) {
-            // Reset keys exist status on backend failure
-            setKeysExist(false);
-            throw new Error(
-              `Backend enrollment failed: ${enrollResult.message}`,
+    try {
+      await executeWithLogging(
+        'enroll',
+        'Starting biometric enrollment...',
+        async () => {
+          // Validate biometric availability first
+          if (!biometricStatus.available) {
+            const error = new Error(
+              `Biometric sensors not available: ${
+                biometricStatus.error || 'Unknown reason'
+              }`,
             );
+            webControlLogger.logError('bridge', error, 'Enrollment validation', operationId);
+            throw error;
           }
 
-          logSuccess(
-            'enroll',
-            'Public key successfully registered with backend',
+          // Create biometric keys with user authentication
+          logInfo('enroll', 'Creating biometric keys...');
+          webControlLogger.logBridge('info', 'Creating biometric keys...', operationId);
+          
+          const createKeysResult = await biometricService.createKeys(
+            'Authenticate to create biometric keys for enrollment',
           );
 
-          return {
-            publicKey,
-            backendResponse: enrollResult.data,
-            endpoint: enrollEndpoint.url,
-            method: enrollEndpoint.method,
-          };
-        } else {
-          logInfo(
+          if (!createKeysResult.success) {
+            const error = new Error(`Key creation failed: ${createKeysResult.message}`);
+            webControlLogger.logError('bridge', error, 'Key creation', operationId);
+            throw error;
+          }
+
+          const publicKey = createKeysResult.data.publicKey;
+          logSuccess(
             'enroll',
-            'No enrollment endpoint configured - keys created locally only',
+            `Biometric keys created successfully. Public key: ${publicKey.substring(
+              0,
+              50,
+            )}...`,
           );
-          return {
-            publicKey,
-            localOnly: true,
-          };
-        }
-      },
-      'Enrollment completed successfully',
-    );
+          
+          webControlLogger.logBridge(
+            'info', 
+            'Biometric keys created successfully', 
+            operationId,
+            undefined,
+            { publicKeyLength: publicKey.length }
+          );
+
+          // Update keys exist status
+          setKeysExist(true);
+
+          // Send public key to backend if endpoint is configured
+          if (enrollEndpoint.url) {
+            logInfo(
+              'enroll',
+              `Sending public key to enrollment endpoint: ${enrollEndpoint.url}`,
+            );
+            
+            webControlLogger.logNetwork(
+              'info',
+              'Sending enrollment request to backend',
+              enrollEndpoint.url,
+              { method: enrollEndpoint.method }
+            );
+
+            const enrollResult = await networkResilience.executeWithRetry(
+              () => biometricAPIService.enrollPublicKey(enrollEndpoint, publicKey),
+              'Backend enrollment',
+              3
+            );
+
+            if (!enrollResult.success) {
+              // Reset keys exist status on backend failure
+              setKeysExist(false);
+              const error = new Error(`Backend enrollment failed: ${enrollResult.message}`);
+              webControlLogger.logError('bridge', error, 'Backend enrollment', operationId, {
+                endpoint: enrollEndpoint.url,
+                resetKeysExist: true,
+              });
+              throw error;
+            }
+
+            logSuccess(
+              'enroll',
+              'Public key successfully registered with backend',
+            );
+            
+            webControlLogger.logNetwork(
+              'info',
+              'Enrollment request completed successfully',
+              enrollEndpoint.url,
+              { responseData: enrollResult.data }
+            );
+
+            const result = {
+              publicKey,
+              backendResponse: enrollResult.data,
+              endpoint: enrollEndpoint.url,
+              method: enrollEndpoint.method,
+            };
+            
+            webControlLogger.logOperationComplete('bridge', 'enrollment', operationId, true, startTime, result);
+            await webControlStateManager.completeOperation(operationId, true, result);
+            
+            return result;
+          } else {
+            logInfo(
+              'enroll',
+              'No enrollment endpoint configured - keys created locally only',
+            );
+            
+            const result = {
+              publicKey,
+              localOnly: true,
+            };
+            
+            webControlLogger.logOperationComplete('bridge', 'enrollment', operationId, true, startTime, result);
+            await webControlStateManager.completeOperation(operationId, true, result);
+            
+            return result;
+          }
+        },
+        'Enrollment completed successfully',
+      );
+    } catch (error) {
+      webControlLogger.logOperationComplete('bridge', 'enrollment', operationId, false, startTime, { error });
+      await webControlStateManager.completeOperation(operationId, false, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }, [
     executeWithLogging,
     enrollEndpoint,
@@ -248,106 +370,171 @@ function AppContent(): React.JSX.Element {
    * Handle validation flow with signature verification
    */
   const handleValidate = useCallback(async () => {
-    await executeWithLogging(
-      'validate',
-      'Starting biometric validation...',
-      async () => {
-        // Validate prerequisites
-        if (!biometricStatus.available) {
-          throw new Error(
-            `Biometric sensors not available: ${
-              biometricStatus.error || 'Unknown reason'
-            }`,
-          );
-        }
+    const operationId = webControlStateManager.startOperation('validate');
+    const startTime = Date.now();
+    
+    webControlLogger.logOperationStart('bridge', 'validation', operationId, {
+      endpoint: validateEndpoint.url,
+      biometricAvailable: biometricStatus.available,
+      keysExist,
+    });
 
-        if (!keysExist) {
-          throw new Error(
-            'No biometric keys found. Please enroll first before attempting validation.',
-          );
-        }
-
-        // Generate payload for signature (custom or timestamp)
-        logInfo('validate', 'Generating payload for signature...');
-        const payload = biometricService.generatePayload(
-          validateEndpoint.customPayload,
-        );
-        const payloadType = validateEndpoint.customPayload
-          ? 'custom'
-          : 'timestamp';
-        logInfo('validate', `Generated ${payloadType} payload: ${payload}`);
-
-        // Create signature with biometric authentication
-        logInfo(
-          'validate',
-          'Requesting biometric authentication for signature creation...',
-        );
-        const signatureResult = await biometricService.createSignature({
-          promptMessage: 'Authenticate to create signature for validation',
-          payload,
-          cancelButtonText: 'Cancel Validation',
-        });
-
-        if (!signatureResult.success) {
-          throw new Error(
-            `Signature creation failed: ${signatureResult.message}`,
-          );
-        }
-
-        const signature = signatureResult.data.signature;
-        logSuccess(
-          'validate',
-          `Signature created successfully. Length: ${signature.length} characters`,
-        );
-
-        // Send signature to backend for validation if endpoint is configured
-        if (validateEndpoint.url) {
-          logInfo(
-            'validate',
-            `Sending signature to validation endpoint: ${validateEndpoint.url}`,
-          );
-
-          const validationResult = await biometricAPIService.validateSignature(
-            validateEndpoint,
-            signature,
-            payload,
-          );
-
-          if (!validationResult.success) {
-            throw new Error(
-              `Backend validation failed: ${validationResult.message}`,
+    try {
+      await executeWithLogging(
+        'validate',
+        'Starting biometric validation...',
+        async () => {
+          // Validate prerequisites
+          if (!biometricStatus.available) {
+            const error = new Error(
+              `Biometric sensors not available: ${
+                biometricStatus.error || 'Unknown reason'
+              }`,
             );
+            webControlLogger.logError('bridge', error, 'Validation prerequisites', operationId);
+            throw error;
           }
 
-          logSuccess(
-            'validate',
-            'Signature successfully validated by backend server',
+          if (!keysExist) {
+            const error = new Error(
+              'No biometric keys found. Please enroll first before attempting validation.',
+            );
+            webControlLogger.logError('bridge', error, 'Validation prerequisites', operationId);
+            throw error;
+          }
+
+          // Generate payload for signature (custom or timestamp)
+          logInfo('validate', 'Generating payload for signature...');
+          webControlLogger.logBridge('info', 'Generating payload for signature...', operationId);
+          
+          const payload = biometricService.generatePayload(
+            validateEndpoint.customPayload,
+          );
+          const payloadType = validateEndpoint.customPayload
+            ? 'custom'
+            : 'timestamp';
+          logInfo('validate', `Generated ${payloadType} payload: ${payload}`);
+          
+          webControlLogger.logBridge(
+            'info',
+            `Generated ${payloadType} payload`,
+            operationId,
+            undefined,
+            { payloadType, payloadLength: payload.length }
           );
 
-          return {
-            signature,
-            payload,
-            backendResponse: validationResult.data,
-            endpoint: validateEndpoint.url,
-            method: validateEndpoint.method,
-            validationTimestamp: new Date().toISOString(),
-          };
-        } else {
+          // Create signature with biometric authentication
           logInfo(
             'validate',
-            'No validation endpoint configured - signature created locally only',
+            'Requesting biometric authentication for signature creation...',
+          );
+          webControlLogger.logBridge('info', 'Creating biometric signature...', operationId);
+          
+          const signatureResult = await biometricService.createSignature({
+            promptMessage: 'Authenticate to create signature for validation',
+            payload,
+            cancelButtonText: 'Cancel Validation',
+          });
+
+          if (!signatureResult.success) {
+            const error = new Error(`Signature creation failed: ${signatureResult.message}`);
+            webControlLogger.logError('bridge', error, 'Signature creation', operationId);
+            throw error;
+          }
+
+          const signature = signatureResult.data.signature;
+          logSuccess(
+            'validate',
+            `Signature created successfully. Length: ${signature.length} characters`,
+          );
+          
+          webControlLogger.logBridge(
+            'info',
+            'Signature created successfully',
+            operationId,
+            undefined,
+            { signatureLength: signature.length }
           );
 
-          return {
-            signature,
-            payload,
-            localOnly: true,
-            validationTimestamp: new Date().toISOString(),
-          };
-        }
-      },
-      'Validation completed successfully',
-    );
+          // Send signature to backend for validation if endpoint is configured
+          if (validateEndpoint.url) {
+            logInfo(
+              'validate',
+              `Sending signature to validation endpoint: ${validateEndpoint.url}`,
+            );
+            
+            webControlLogger.logNetwork(
+              'info',
+              'Sending validation request to backend',
+              validateEndpoint.url,
+              { method: validateEndpoint.method }
+            );
+
+            const validationResult = await networkResilience.executeWithRetry(
+              () => biometricAPIService.validateSignature(validateEndpoint, signature, payload),
+              'Backend validation',
+              3
+            );
+
+            if (!validationResult.success) {
+              const error = new Error(`Backend validation failed: ${validationResult.message}`);
+              webControlLogger.logError('bridge', error, 'Backend validation', operationId, {
+                endpoint: validateEndpoint.url,
+              });
+              throw error;
+            }
+
+            logSuccess(
+              'validate',
+              'Signature successfully validated by backend server',
+            );
+            
+            webControlLogger.logNetwork(
+              'info',
+              'Validation request completed successfully',
+              validateEndpoint.url,
+              { responseData: validationResult.data }
+            );
+
+            const result = {
+              signature,
+              payload,
+              backendResponse: validationResult.data,
+              endpoint: validateEndpoint.url,
+              method: validateEndpoint.method,
+              validationTimestamp: new Date().toISOString(),
+            };
+            
+            webControlLogger.logOperationComplete('bridge', 'validation', operationId, true, startTime, result);
+            await webControlStateManager.completeOperation(operationId, true, result);
+            
+            return result;
+          } else {
+            logInfo(
+              'validate',
+              'No validation endpoint configured - signature created locally only',
+            );
+
+            const result = {
+              signature,
+              payload,
+              localOnly: true,
+              validationTimestamp: new Date().toISOString(),
+            };
+            
+            webControlLogger.logOperationComplete('bridge', 'validation', operationId, true, startTime, result);
+            await webControlStateManager.completeOperation(operationId, true, result);
+            
+            return result;
+          }
+        },
+        'Validation completed successfully',
+      );
+    } catch (error) {
+      webControlLogger.logOperationComplete('bridge', 'validation', operationId, false, startTime, { error });
+      await webControlStateManager.completeOperation(operationId, false, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }, [
     executeWithLogging,
     validateEndpoint,
@@ -368,42 +555,103 @@ function AppContent(): React.JSX.Element {
         {
           text: 'Cancel',
           style: 'cancel',
+          onPress: () => {
+            webControlLogger.logBridge('info', 'Key deletion cancelled by user');
+          },
         },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await executeWithLogging(
-              'delete',
-              'Deleting biometric keys...',
-              async () => {
-                const deleteResult = await biometricService.deleteKeys();
-                if (!deleteResult.success) {
-                  throw new Error(deleteResult.message);
-                }
+            const operationId = webControlStateManager.startOperation('delete-keys');
+            const startTime = Date.now();
+            
+            webControlLogger.logOperationStart('bridge', 'key deletion', operationId, {
+              keysExist,
+            });
 
-                // Update keys exist status
-                setKeysExist(false);
+            try {
+              await executeWithLogging(
+                'delete',
+                'Deleting biometric keys...',
+                async () => {
+                  webControlLogger.logBridge('info', 'Deleting biometric keys...', operationId);
+                  
+                  const deleteResult = await biometricService.deleteKeys();
+                  if (!deleteResult.success) {
+                    const error = new Error(deleteResult.message);
+                    webControlLogger.logError('bridge', error, 'Key deletion', operationId);
+                    throw error;
+                  }
 
-                return deleteResult.data;
-              },
-              'Biometric keys deleted successfully',
-            );
+                  // Update keys exist status
+                  setKeysExist(false);
+                  
+                  webControlLogger.logBridge(
+                    'info',
+                    'Biometric keys deleted successfully',
+                    operationId,
+                    undefined,
+                    { keysExistUpdated: false }
+                  );
+
+                  const result = deleteResult.data;
+                  webControlLogger.logOperationComplete('bridge', 'key deletion', operationId, true, startTime, result);
+                  await webControlStateManager.completeOperation(operationId, true, result);
+                  
+                  return result;
+                },
+                'Biometric keys deleted successfully',
+              );
+            } catch (error) {
+              webControlLogger.logOperationComplete('bridge', 'key deletion', operationId, false, startTime, { error });
+              await webControlStateManager.completeOperation(operationId, false, { error: error instanceof Error ? error.message : String(error) });
+              throw error;
+            }
           },
         },
       ],
     );
-  }, [executeWithLogging]);
+  }, [executeWithLogging, keysExist]);
 
   // Component lifecycle management - initialize on app load
   useEffect(() => {
+    let webControlCleanup: (() => void) | undefined;
+
     const initialize = async () => {
-      await loadEndpointConfiguration();
-      await initializeBiometrics();
+      try {
+        webControlLogger.logState('info', 'Starting application initialization...');
+        
+        // Initialize web control first
+        webControlCleanup = await initializeWebControl();
+        
+        // Then initialize other components
+        await loadEndpointConfiguration();
+        await initializeBiometrics();
+        
+        webControlLogger.logState('info', 'Application initialization completed successfully');
+      } catch (error) {
+        webControlLogger.logError('state', error, 'Application initialization');
+        setWebControlError('Failed to initialize application. Some features may not work correctly.');
+      }
     };
 
     initialize();
-  }, [loadEndpointConfiguration, initializeBiometrics]);
+
+    // Cleanup function
+    return () => {
+      if (webControlCleanup) {
+        webControlCleanup();
+      }
+      
+      // Shutdown web control state manager
+      webControlStateManager.shutdown().catch(error => {
+        webControlLogger.logError('state', error, 'Application shutdown');
+      });
+      
+      webControlLogger.logState('info', 'Application cleanup completed');
+    };
+  }, [loadEndpointConfiguration, initializeBiometrics, initializeWebControl]);
 
   const styles = createStyles(theme);
 
@@ -424,6 +672,21 @@ function AppContent(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
       >
         <Header />
+
+        {webControlError && (
+          <AnimatedView
+            style={[
+              styles.errorContainer,
+              { backgroundColor: theme.colors.error + '20' }
+            ]}
+            lightBackgroundColor={theme.colors.error + '20'}
+            darkBackgroundColor={theme.colors.error + '20'}
+          >
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+              Web Control Error: {webControlError}
+            </Text>
+          </AnimatedView>
+        )}
 
         <BiometricStatusDisplay
           available={biometricStatus.available}
@@ -455,7 +718,23 @@ function AppContent(): React.JSX.Element {
           currentOperation={currentOperation || undefined}
           isLoading={isLoading}
         />
+
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.debugButton}
+            onPress={() => setShowDebugPanel(true)}
+          >
+            <Text style={styles.debugButtonText}>Debug Panel</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
+
+      {__DEV__ && (
+        <WebControlDebugPanel
+          visible={showDebugPanel}
+          onClose={() => setShowDebugPanel(false)}
+        />
+      )}
     </AnimatedView>
   );
 }
@@ -478,6 +757,39 @@ const createStyles = (theme: any) =>
     },
     scrollContent: {
       paddingBottom: theme.spacing.xl,
+    },
+    errorContainer: {
+      marginHorizontal: theme.spacing.md,
+      marginVertical: theme.spacing.sm,
+      padding: theme.spacing.md,
+      borderRadius: theme.borderRadius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.error + '40',
+    },
+    errorText: {
+      fontSize: theme.typography.sizes.sm,
+      fontWeight: theme.typography.weights.medium,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    debugButton: {
+      position: 'absolute',
+      bottom: theme.spacing.md,
+      right: theme.spacing.md,
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.borderRadius.md,
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+    },
+    debugButtonText: {
+      color: '#FFFFFF',
+      fontSize: theme.typography.sizes.sm,
+      fontWeight: theme.typography.weights.bold,
     },
   });
 

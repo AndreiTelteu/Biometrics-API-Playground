@@ -7,3 +7,4 @@ export * from './logUtils';
 export { useStatusLogger } from './useStatusLogger';
 export { errorHandler } from './ErrorHandler';
 export { networkResilience } from './NetworkResilience';
+export { webControlLogger } from './WebControlLogger';
