@@ -71,7 +71,7 @@
   - Add server connection status and active connections display
   - _Requirements: 1.1, 1.3, 1.4, 6.4_
 
-- [ ] 10. Implement HTTP request routing and handlers
+- [x] 10. Implement HTTP request routing and handlers
 
   - Create route handlers for all biometric operations (enroll, validate, delete-keys)
   - Implement GET endpoint for serving the web interface

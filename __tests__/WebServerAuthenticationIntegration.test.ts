@@ -73,7 +73,7 @@ describe('WebServerService Authentication Integration', () => {
 
       // Verify 200 response was sent
       expect(mockSocket.writtenData).toContain('HTTP/1.1 200 OK');
-      expect(mockSocket.writtenData).toContain('Web Control Server Running - Authenticated');
+      expect(mockSocket.writtenData).toContain('Web control server is running and authenticated');
     });
 
     it('should reject requests with incorrect credentials', async () => {

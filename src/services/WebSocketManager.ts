@@ -58,6 +58,42 @@ export class WebSocketManager {
   }
 
   /**
+   * Handles WebSocket upgrade request from HTTP
+   * @param socket The TCP socket to upgrade
+   * @param request The HTTP request containing WebSocket headers
+   */
+  async handleUpgrade(socket: any, request: any): Promise<void> {
+    try {
+      // Extract WebSocket key from headers
+      const webSocketKey = request.headers['sec-websocket-key'];
+      if (!webSocketKey) {
+        throw new Error('Missing Sec-WebSocket-Key header');
+      }
+
+      // Generate WebSocket accept key
+      const acceptKey = this.generateWebSocketAcceptKey(webSocketKey);
+
+      // Send WebSocket handshake response
+      const responseHeaders = [
+        'HTTP/1.1 101 Switching Protocols',
+        'Upgrade: websocket',
+        'Connection: Upgrade',
+        `Sec-WebSocket-Accept: ${acceptKey}`,
+        '',
+        '',
+      ].join('\r\n');
+
+      socket.write(responseHeaders);
+
+      // Handle the connection as WebSocket
+      this.handleConnection(socket);
+    } catch (error) {
+      console.error('WebSocket upgrade failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Handles a new WebSocket connection
    * @param socket The WebSocket connection
    * @param clientId Optional client identifier
@@ -442,6 +478,198 @@ export class WebSocketManager {
   }
 
   /**
+   * Generates WebSocket accept key for handshake
+   * React Native compatible implementation without Node.js crypto
+   */
+  private generateWebSocketAcceptKey(webSocketKey: string): string {
+    const WEBSOCKET_MAGIC_STRING = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+    const concatenated = webSocketKey + WEBSOCKET_MAGIC_STRING;
+    
+    // Simple SHA-1 implementation for React Native
+    const sha1Hash = this.sha1(concatenated);
+    return this.base64Encode(sha1Hash);
+  }
+
+  /**
+   * Simple SHA-1 implementation for React Native compatibility
+   */
+  private sha1(str: string): number[] {
+    // Convert string to UTF-8 bytes
+    const utf8Bytes = this.stringToUtf8Bytes(str);
+    
+    // Pad the message
+    const paddedBytes = this.padMessage(utf8Bytes);
+    
+    // Initialize hash values (SHA-1 initial values)
+    let h0 = 0x67452301;
+    let h1 = 0xEFCDAB89;
+    let h2 = 0x98BADCFE;
+    let h3 = 0x10325476;
+    let h4 = 0xC3D2E1F0;
+    
+    // Process message in 512-bit (64-byte) chunks
+    for (let i = 0; i < paddedBytes.length; i += 64) {
+      const chunk = paddedBytes.slice(i, i + 64);
+      const w = new Array(80);
+      
+      // Break chunk into sixteen 32-bit big-endian words
+      for (let j = 0; j < 16; j++) {
+        w[j] = (chunk[j * 4] << 24) | (chunk[j * 4 + 1] << 16) | 
+               (chunk[j * 4 + 2] << 8) | chunk[j * 4 + 3];
+        // Ensure 32-bit unsigned
+        w[j] = w[j] >>> 0;
+      }
+      
+      // Extend the sixteen 32-bit words into eighty 32-bit words
+      for (let j = 16; j < 80; j++) {
+        w[j] = this.leftRotate(w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16], 1);
+      }
+      
+      // Initialize hash value for this chunk
+      let a = h0, b = h1, c = h2, d = h3, e = h4;
+      
+      // Main loop
+      for (let j = 0; j < 80; j++) {
+        let f, k;
+        if (j < 20) {
+          f = (b & c) | ((~b) & d);
+          k = 0x5A827999;
+        } else if (j < 40) {
+          f = b ^ c ^ d;
+          k = 0x6ED9EBA1;
+        } else if (j < 60) {
+          f = (b & c) | (b & d) | (c & d);
+          k = 0x8F1BBCDC;
+        } else {
+          f = b ^ c ^ d;
+          k = 0xCA62C1D6;
+        }
+        
+        // Ensure all operations are 32-bit unsigned
+        f = f >>> 0;
+        const temp = (this.leftRotate(a, 5) + f + e + k + w[j]) >>> 0;
+        e = d;
+        d = c;
+        c = this.leftRotate(b, 30);
+        b = a;
+        a = temp;
+      }
+      
+      // Add this chunk's hash to result so far (32-bit unsigned arithmetic)
+      h0 = (h0 + a) >>> 0;
+      h1 = (h1 + b) >>> 0;
+      h2 = (h2 + c) >>> 0;
+      h3 = (h3 + d) >>> 0;
+      h4 = (h4 + e) >>> 0;
+    }
+    
+    // Convert hash values to bytes (big-endian)
+    const result = [];
+    [h0, h1, h2, h3, h4].forEach(h => {
+      result.push((h >>> 24) & 0xFF);
+      result.push((h >>> 16) & 0xFF);
+      result.push((h >>> 8) & 0xFF);
+      result.push(h & 0xFF);
+    });
+    
+    return result;
+  }
+
+  /**
+   * Convert string to UTF-8 bytes
+   */
+  private stringToUtf8Bytes(str: string): number[] {
+    const bytes = [];
+    for (let i = 0; i < str.length; i++) {
+      const code = str.charCodeAt(i);
+      if (code < 0x80) {
+        bytes.push(code);
+      } else if (code < 0x800) {
+        bytes.push(0xC0 | (code >> 6));
+        bytes.push(0x80 | (code & 0x3F));
+      } else if (code < 0x10000) {
+        bytes.push(0xE0 | (code >> 12));
+        bytes.push(0x80 | ((code >> 6) & 0x3F));
+        bytes.push(0x80 | (code & 0x3F));
+      } else {
+        bytes.push(0xF0 | (code >> 18));
+        bytes.push(0x80 | ((code >> 12) & 0x3F));
+        bytes.push(0x80 | ((code >> 6) & 0x3F));
+        bytes.push(0x80 | (code & 0x3F));
+      }
+    }
+    return bytes;
+  }
+
+  /**
+   * Pad message according to SHA-1 specification
+   */
+  private padMessage(bytes: number[]): number[] {
+    const originalLength = bytes.length;
+    const bitLength = originalLength * 8;
+    
+    // Make a copy to avoid modifying the original
+    const paddedBytes = [...bytes];
+    
+    // Append the '1' bit (plus zero padding to make it a byte)
+    paddedBytes.push(0x80);
+    
+    // Append zeros until message length ≡ 448 (mod 512) bits, or 56 (mod 64) bytes
+    while ((paddedBytes.length % 64) !== 56) {
+      paddedBytes.push(0);
+    }
+    
+    // Append original length as 64-bit big-endian integer
+    // JavaScript numbers are limited to 53 bits, so we handle this carefully
+    const high32 = Math.floor(bitLength / 0x100000000);
+    const low32 = bitLength & 0xFFFFFFFF;
+    
+    // High 32 bits (big-endian)
+    paddedBytes.push((high32 >>> 24) & 0xFF);
+    paddedBytes.push((high32 >>> 16) & 0xFF);
+    paddedBytes.push((high32 >>> 8) & 0xFF);
+    paddedBytes.push(high32 & 0xFF);
+    
+    // Low 32 bits (big-endian)
+    paddedBytes.push((low32 >>> 24) & 0xFF);
+    paddedBytes.push((low32 >>> 16) & 0xFF);
+    paddedBytes.push((low32 >>> 8) & 0xFF);
+    paddedBytes.push(low32 & 0xFF);
+    
+    return paddedBytes;
+  }
+
+  /**
+   * Left rotate operation for SHA-1 (32-bit)
+   */
+  private leftRotate(value: number, amount: number): number {
+    return ((value << amount) | (value >>> (32 - amount))) >>> 0;
+  }
+
+  /**
+   * Base64 encode bytes array
+   */
+  private base64Encode(bytes: number[]): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let result = '';
+    
+    for (let i = 0; i < bytes.length; i += 3) {
+      const a = bytes[i];
+      const b = i + 1 < bytes.length ? bytes[i + 1] : 0;
+      const c = i + 2 < bytes.length ? bytes[i + 2] : 0;
+      
+      const bitmap = (a << 16) | (b << 8) | c;
+      
+      result += chars.charAt((bitmap >> 18) & 63);
+      result += chars.charAt((bitmap >> 12) & 63);
+      result += i + 1 < bytes.length ? chars.charAt((bitmap >> 6) & 63) : '=';
+      result += i + 2 < bytes.length ? chars.charAt(bitmap & 63) : '=';
+    }
+    
+    return result;
+  }
+
+  /**
    * Sends queued messages to newly connected clients
    */
   private sendQueuedMessages(connection: WebSocketConnection): void {
@@ -457,3 +685,6 @@ export class WebSocketManager {
     });
   }
 }
+
+// Export singleton instance
+export const webSocketManager = new WebSocketManager();
