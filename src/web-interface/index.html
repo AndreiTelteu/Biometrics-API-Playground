@@ -509,54 +509,6 @@
         </main>
     </div>
 
-    <script>
-        // Mobile device detection
-        function isMobileDevice() {
-            return window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        }
-
-        // Show/hide mobile message based on device detection
-        function checkDeviceType() {
-            const mobileMessage = document.getElementById('mobileMessage');
-            const mainContainer = document.getElementById('mainContainer');
-            
-            if (isMobileDevice()) {
-                mobileMessage.style.display = 'flex';
-                mainContainer.style.display = 'none';
-            } else {
-                mobileMessage.style.display = 'none';
-                mainContainer.style.display = 'flex';
-            }
-        }
-
-        // Tab switching functionality
-        function initializeTabs() {
-            const tabs = document.querySelectorAll('.tab');
-            const tabContents = document.querySelectorAll('.tab-content');
-
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const targetTab = tab.getAttribute('data-tab');
-                    
-                    // Remove active class from all tabs and contents
-                    tabs.forEach(t => t.classList.remove('active'));
-                    tabContents.forEach(content => content.classList.remove('active'));
-                    
-                    // Add active class to clicked tab and corresponding content
-                    tab.classList.add('active');
-                    document.getElementById(targetTab + 'Tab').classList.add('active');
-                });
-            });
-        }
-
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            checkDeviceType();
-            initializeTabs();
-        });
-
-        // Re-check device type on window resize
-        window.addEventListener('resize', checkDeviceType);
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>
