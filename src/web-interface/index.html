@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biometric Playground - Web Control</title>
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* Mobile device detection and desktop-only message */
+        .mobile-only-message {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #fff;
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .mobile-only-message h1 {
+            color: #e74c3c;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        .mobile-only-message p {
+            font-size: 1.1rem;
+            color: #666;
+            max-width: 400px;
+        }
+
+        /* Main container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* Tab navigation */
+        .tab-navigation {
+            background: white;
+            border-bottom: 1px solid #e1e5e9;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tabs {
+            display: flex;
+        }
+
+        .tab {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            color: #333;
+            background-color: #f8f9fa;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background-color: #f8f9fa;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        /* Main content area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Left panel - Configuration */
+        .left-panel {
+            width: 50%;
+            background: white;
+            border-right: 1px solid #e1e5e9;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Right panel - Response and Logs */
+        .right-panel {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Tab content */
+        .tab-content {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* Configuration sections */
+        .config-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .config-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        select.form-control {
+            cursor: pointer;
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+
+        /* Action buttons */
+        .action-buttons {
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-top: 1px solid #e1e5e9;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            background-color: #5a67d8;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        /* Response viewer */
+        .response-section {
+            background: white;
+            border-bottom: 1px solid #e1e5e9;
+            height: 50%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .response-header {
+            padding: 1rem 1.5rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e1e5e9;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .response-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+            background: #fafafa;
+        }
+
+        /* Logs viewer */
+        .logs-section {
+            background: white;
+            height: 50%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logs-header {
+            padding: 1rem 1.5rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e1e5e9;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .logs-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+            background: #2d3748;
+            color: #e2e8f0;
+        }
+
+        /* Loading states */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive design - Desktop only */
+        @media (max-width: 1024px) {
+            .mobile-only-message {
+                display: flex;
+            }
+            
+            .container {
+                display: none;
+            }
+        }
+
+        /* Status indicators */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-connected {
+            background-color: #27ae60;
+        }
+
+        .status-disconnected {
+            background-color: #e74c3c;
+        }
+
+        .status-loading {
+            background-color: #f39c12;
+            animation: pulse 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 1; }
+            to { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile device detection message -->
+    <div class="mobile-only-message" id="mobileMessage">
+        <h1>Desktop Only</h1>
+        <p>This web control interface is designed for desktop use only. Please access this page from a desktop or laptop computer for the best experience.</p>
+    </div>
+
+    <!-- Main application container -->
+    <div class="container" id="mainContainer">
+        <!-- Header -->
+        <header class="header">
+            <h1>Biometric Playground - Web Control</h1>
+        </header>
+
+        <!-- Tab navigation -->
+        <nav class="tab-navigation">
+            <div class="tabs">
+                <div class="tab active" data-tab="validation">
+                    <span class="status-indicator status-disconnected" id="validationStatus"></span>
+                    Validation
+                </div>
+                <div class="tab" data-tab="enrollment">
+                    <span class="status-indicator status-disconnected" id="enrollmentStatus"></span>
+                    Enrollment
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" id="clearLogsBtn">Clear Logs</button>
+            </div>
+        </nav>
+
+        <!-- Main content area -->
+        <main class="main-content">
+            <!-- Left panel - Configuration -->
+            <div class="left-panel">
+                <!-- Validation tab content -->
+                <div class="tab-content active" id="validationTab">
+                    <div class="config-section">
+                        <h3>Endpoint Configuration</h3>
+                        <div class="form-group">
+                            <label for="validationUrl">URL</label>
+                            <input type="url" class="form-control" id="validationUrl" placeholder="https://api.example.com/validate">
+                        </div>
+                        <div class="form-group">
+                            <label for="validationMethod">Method</label>
+                            <select class="form-control" id="validationMethod">
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="PATCH">PATCH</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Headers</h3>
+                        <div class="form-group">
+                            <label for="validationHeaders">Custom Headers (JSON format)</label>
+                            <textarea class="form-control" id="validationHeaders" placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'></textarea>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Request Body</h3>
+                        <div class="form-group">
+                            <label for="validationPayload">Custom Payload (JSON format)</label>
+                            <textarea class="form-control" id="validationPayload" placeholder='{"userId": "123", "additionalData": {}}'></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enrollment tab content -->
+                <div class="tab-content" id="enrollmentTab">
+                    <div class="config-section">
+                        <h3>Endpoint Configuration</h3>
+                        <div class="form-group">
+                            <label for="enrollmentUrl">URL</label>
+                            <input type="url" class="form-control" id="enrollmentUrl" placeholder="https://api.example.com/enroll">
+                        </div>
+                        <div class="form-group">
+                            <label for="enrollmentMethod">Method</label>
+                            <select class="form-control" id="enrollmentMethod">
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="PATCH">PATCH</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Headers</h3>
+                        <div class="form-group">
+                            <label for="enrollmentHeaders">Custom Headers (JSON format)</label>
+                            <textarea class="form-control" id="enrollmentHeaders" placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'></textarea>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Request Body</h3>
+                        <div class="form-group">
+                            <label for="enrollmentPayload">Custom Payload (JSON format)</label>
+                            <textarea class="form-control" id="enrollmentPayload" placeholder='{"userId": "123", "enrollmentData": {}}'></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="enrollBtn">
+                        <span class="spinner" id="enrollSpinner" style="display: none;"></span>
+                        Enroll
+                    </button>
+                    <button class="btn btn-primary" id="validateBtn">
+                        <span class="spinner" id="validateSpinner" style="display: none;"></span>
+                        Validate
+                    </button>
+                    <button class="btn btn-danger" id="deleteKeysBtn">
+                        <span class="spinner" id="deleteSpinner" style="display: none;"></span>
+                        Delete Keys
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right panel - Response and Logs -->
+            <div class="right-panel">
+                <!-- API Response section -->
+                <section class="response-section">
+                    <div class="response-header">
+                        <span class="status-indicator status-disconnected" id="responseStatus"></span>
+                        API Response
+                    </div>
+                    <div class="response-content" id="responseContent">
+                        <div style="color: #666; text-align: center; padding: 2rem;">
+                            No response data yet. Execute an operation to see results here.
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Logs section -->
+                <section class="logs-section">
+                    <div class="logs-header">
+                        <span class="status-indicator status-disconnected" id="logsStatus"></span>
+                        Real-time Logs
+                    </div>
+                    <div class="logs-content" id="logsContent">
+                        <div style="color: #718096; text-align: center; padding: 2rem;">
+                            Connecting to log stream...
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Mobile device detection
+        function isMobileDevice() {
+            return window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Show/hide mobile message based on device detection
+        function checkDeviceType() {
+            const mobileMessage = document.getElementById('mobileMessage');
+            const mainContainer = document.getElementById('mainContainer');
+            
+            if (isMobileDevice()) {
+                mobileMessage.style.display = 'flex';
+                mainContainer.style.display = 'none';
+            } else {
+                mobileMessage.style.display = 'none';
+                mainContainer.style.display = 'flex';
+            }
+        }
+
+        // Tab switching functionality
+        function initializeTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const targetTab = tab.getAttribute('data-tab');
+                    
+                    // Remove active class from all tabs and contents
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // Add active class to clicked tab and corresponding content
+                    tab.classList.add('active');
+                    document.getElementById(targetTab + 'Tab').classList.add('active');
+                });
+            });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            checkDeviceType();
+            initializeTabs();
+        });
+
+        // Re-check device type on window resize
+        window.addEventListener('resize', checkDeviceType);
+    </script>
+</body>
+</html>
