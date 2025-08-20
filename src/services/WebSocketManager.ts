@@ -4,6 +4,8 @@ import {
   WebSocketManagerState,
   WebSocketMessageType,
 } from '../types';
+import { errorHandler } from '../utils/ErrorHandler';
+import { networkResilience } from '../utils/NetworkResilience';
 
 /**
  * WebSocketManager handles real-time bidirectional communication between
@@ -27,6 +29,9 @@ export class WebSocketManager {
   private readonly HEARTBEAT_INTERVAL = 30000; // 30 seconds
   private readonly CONNECTION_TIMEOUT = 60000; // 60 seconds
   private readonly MAX_MESSAGE_QUEUE_SIZE = 100;
+  private isShuttingDown: boolean = false;
+  private reconnectionAttempts: Map<string, number> = new Map();
+  private readonly MAX_RECONNECTION_ATTEMPTS = 3;
 
   /**
    * Initializes the WebSocket manager
@@ -36,25 +41,43 @@ export class WebSocketManager {
       return;
     }
 
-    this.state.isActive = true;
-    this.startHeartbeat();
-    console.log('WebSocketManager initialized');
+    try {
+      this.state.isActive = true;
+      this.isShuttingDown = false;
+      this.startHeartbeat();
+      this.setupNetworkResilience();
+      console.log('WebSocketManager initialized');
+    } catch (error) {
+      const appError = errorHandler.handleApplicationError(error, 'WebSocket manager initialization');
+      console.error('Failed to initialize WebSocketManager:', appError.message);
+      throw error;
+    }
   }
 
   /**
    * Shuts down the WebSocket manager and cleans up all connections
    */
   shutdown(): void {
-    if (!this.state.isActive) {
+    if (!this.state.isActive && !this.isShuttingDown) {
       return;
     }
 
-    this.state.isActive = false;
-    this.stopHeartbeat();
-    this.disconnectAllClients();
-    this.clearMessageQueue();
+    try {
+      this.isShuttingDown = true;
+      this.state.isActive = false;
+      
+      this.stopHeartbeat();
+      this.disconnectAllClientsGracefully();
+      this.clearMessageQueue();
+      this.reconnectionAttempts.clear();
 
-    console.log('WebSocketManager shut down');
+      console.log('WebSocketManager shut down');
+    } catch (error) {
+      const appError = errorHandler.handleApplicationError(error, 'WebSocket manager shutdown');
+      console.error('Error during WebSocketManager shutdown:', appError.message);
+    } finally {
+      this.isShuttingDown = false;
+    }
   }
 
   /**
@@ -64,6 +87,10 @@ export class WebSocketManager {
    */
   async handleUpgrade(socket: any, request: any): Promise<void> {
     try {
+      if (this.isShuttingDown) {
+        throw new Error('WebSocket manager is shutting down');
+      }
+
       // Extract WebSocket key from headers
       const webSocketKey = request.headers['sec-websocket-key'];
       if (!webSocketKey) {
@@ -88,7 +115,8 @@ export class WebSocketManager {
       // Handle the connection as WebSocket
       this.handleConnection(socket);
     } catch (error) {
-      console.error('WebSocket upgrade failed:', error);
+      const wsError = errorHandler.handleWebSocketError(error, 'WebSocket upgrade');
+      console.error('WebSocket upgrade failed:', wsError.message);
       throw error;
     }
   }
@@ -99,36 +127,52 @@ export class WebSocketManager {
    * @param clientId Optional client identifier
    */
   handleConnection(socket: any, clientId?: string): string {
-    const connectionId = clientId || this.generateConnectionId();
+    try {
+      if (this.isShuttingDown) {
+        throw new Error('WebSocket manager is shutting down');
+      }
 
-    const connection: WebSocketConnection = {
-      id: connectionId,
-      socket,
-      isAlive: true,
-      connectedAt: new Date(),
-      lastActivity: new Date(),
-    };
+      const connectionId = clientId || this.generateConnectionId();
 
-    // Set up socket event handlers
-    this.setupSocketHandlers(connection);
+      const connection: WebSocketConnection = {
+        id: connectionId,
+        socket,
+        isAlive: true,
+        connectedAt: new Date(),
+        lastActivity: new Date(),
+      };
 
-    // Add to connections map
-    this.state.connections.set(connectionId, connection);
-    this.state.stats.totalConnections++;
-    this.state.stats.activeConnections++;
+      // Set up socket event handlers with error handling
+      this.setupSocketHandlersWithErrorHandling(connection);
 
-    // Send connection established message
-    this.sendToClient(connectionId, {
-      type: 'connection-established',
-      timestamp: new Date().toISOString(),
-      data: {
-        clientId: connectionId,
-        serverTime: new Date().toISOString(),
-      },
-    });
+      // Add to connections map
+      this.state.connections.set(connectionId, connection);
+      this.state.stats.totalConnections++;
+      this.state.stats.activeConnections++;
 
-    console.log(`WebSocket client connected: ${connectionId}`);
-    return connectionId;
+      // Reset reconnection attempts for this connection
+      this.reconnectionAttempts.delete(connectionId);
+
+      // Send connection established message
+      this.sendToClientSafely(connectionId, {
+        type: 'connection-established',
+        timestamp: new Date().toISOString(),
+        data: {
+          clientId: connectionId,
+          serverTime: new Date().toISOString(),
+        },
+      });
+
+      // Send any queued messages to the new connection
+      this.sendQueuedMessagesToConnection(connection);
+
+      console.log(`WebSocket client connected: ${connectionId}`);
+      return connectionId;
+    } catch (error) {
+      const wsError = errorHandler.handleWebSocketError(error, 'Connection handling', clientId);
+      console.error('Error handling WebSocket connection:', wsError.message);
+      throw error;
+    }
   }
 
   /**
@@ -683,6 +727,350 @@ export class WebSocketManager {
     recentMessages.forEach(message => {
       this.sendToConnection(connection, message);
     });
+  }
+
+  /**
+   * Setup network resilience for WebSocket connections
+   */
+  private setupNetworkResilience(): void {
+    networkResilience.addConnectionListener({
+      onDisconnected: (error) => {
+        console.log('Network disconnected, handling WebSocket connections');
+        this.handleNetworkDisconnection(error);
+      },
+      onReconnected: () => {
+        console.log('Network reconnected, attempting to restore WebSocket connections');
+        this.handleNetworkReconnection();
+      },
+    });
+  }
+
+  /**
+   * Handle network disconnection
+   */
+  private handleNetworkDisconnection(error?: any): void {
+    try {
+      // Mark all connections as potentially lost
+      this.state.connections.forEach((connection) => {
+        connection.isAlive = false;
+      });
+
+      // Broadcast disconnection message to remaining connections
+      this.broadcast('state-sync', {
+        type: 'network-disconnected',
+        message: 'Network connection lost',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      const wsError = errorHandler.handleWebSocketError(err, 'Network disconnection handling');
+      console.error('Error handling network disconnection:', wsError.message);
+    }
+  }
+
+  /**
+   * Handle network reconnection
+   */
+  private handleNetworkReconnection(): void {
+    try {
+      // Attempt to restore connections
+      this.state.connections.forEach((connection) => {
+        if (!connection.isAlive) {
+          this.attemptConnectionRestore(connection);
+        }
+      });
+
+      // Broadcast reconnection message
+      this.broadcast('state-sync', {
+        type: 'network-reconnected',
+        message: 'Network connection restored',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      const wsError = errorHandler.handleWebSocketError(error, 'Network reconnection handling');
+      console.error('Error handling network reconnection:', wsError.message);
+    }
+  }
+
+  /**
+   * Attempt to restore a connection
+   */
+  private attemptConnectionRestore(connection: WebSocketConnection): void {
+    try {
+      const attempts = this.reconnectionAttempts.get(connection.id) || 0;
+      
+      if (attempts >= this.MAX_RECONNECTION_ATTEMPTS) {
+        console.log(`Max reconnection attempts reached for ${connection.id}, removing connection`);
+        this.removeConnection(connection.id);
+        return;
+      }
+
+      this.reconnectionAttempts.set(connection.id, attempts + 1);
+
+      // Try to ping the connection
+      try {
+        connection.socket.ping();
+        connection.isAlive = false; // Will be set to true if pong is received
+      } catch (error) {
+        console.log(`Connection ${connection.id} appears to be dead, removing`);
+        this.removeConnection(connection.id);
+      }
+    } catch (error) {
+      const wsError = errorHandler.handleWebSocketError(error, 'Connection restoration', connection.id);
+      console.error('Error attempting connection restore:', wsError.message);
+    }
+  }
+
+  /**
+   * Setup socket handlers with comprehensive error handling
+   */
+  private setupSocketHandlersWithErrorHandling(connection: WebSocketConnection): void {
+    const { socket } = connection;
+
+    try {
+      // Handle incoming messages with error handling
+      socket.on('message', (data: any) => {
+        try {
+          const message = this.parseMessage(data);
+          this.handleIncomingMessageSafely(connection, message);
+        } catch (error) {
+          const wsError = errorHandler.handleWebSocketError(error, 'Message parsing', connection.id);
+          console.error(`Error parsing WebSocket message from ${connection.id}:`, wsError.message);
+          
+          // Send error message back to client
+          this.sendErrorToClient(connection, wsError);
+        }
+      });
+
+      // Handle connection close with error handling
+      socket.on('close', (code?: number, reason?: string) => {
+        try {
+          this.handleConnectionCloseSafely(connection, code, reason);
+        } catch (error) {
+          const wsError = errorHandler.handleWebSocketError(error, 'Connection close handling', connection.id);
+          console.error(`Error handling connection close for ${connection.id}:`, wsError.message);
+        }
+      });
+
+      // Handle connection errors
+      socket.on('error', (error: any) => {
+        const wsError = errorHandler.handleWebSocketError(error, 'Socket error', connection.id);
+        console.error(`WebSocket error for client ${connection.id}:`, wsError.message);
+        this.handleConnectionErrorSafely(connection, wsError);
+      });
+
+      // Handle pong responses for heartbeat
+      socket.on('pong', () => {
+        try {
+          connection.isAlive = true;
+          connection.lastActivity = new Date();
+          
+          // Reset reconnection attempts on successful pong
+          this.reconnectionAttempts.delete(connection.id);
+        } catch (error) {
+          const wsError = errorHandler.handleWebSocketError(error, 'Pong handling', connection.id);
+          console.error(`Error handling pong from ${connection.id}:`, wsError.message);
+        }
+      });
+
+      // Set socket timeout
+      socket.setTimeout(this.CONNECTION_TIMEOUT, () => {
+        const timeoutError = new Error('Socket timeout');
+        const wsError = errorHandler.handleWebSocketError(timeoutError, 'Socket timeout', connection.id);
+        console.warn(`Socket timeout for ${connection.id}:`, wsError.message);
+        this.handleConnectionErrorSafely(connection, wsError);
+      });
+
+    } catch (error) {
+      const wsError = errorHandler.handleWebSocketError(error, 'Socket handler setup', connection.id);
+      console.error(`Error setting up socket handlers for ${connection.id}:`, wsError.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle incoming messages safely
+   */
+  private handleIncomingMessageSafely(connection: WebSocketConnection, message: WebSocketMessage): void {
+    try {
+      connection.lastActivity = new Date();
+      this.state.stats.messagesReceived++;
+
+      // Handle ping messages
+      if (message.type === 'ping') {
+        this.sendToConnectionSafely(connection, {
+          type: 'pong',
+          timestamp: new Date().toISOString(),
+          data: { clientId: connection.id },
+        });
+        return;
+      }
+
+      // Log received message for debugging
+      console.log(`Received WebSocket message from ${connection.id}:`, message.type);
+    } catch (error) {
+      const wsError = errorHandler.handleWebSocketError(error, 'Message handling', connection.id);
+      console.error(`Error handling message from ${connection.id}:`, wsError.message);
+    }
+  }
+
+  /**
+   * Handle connection close safely
+   */
+  private handleConnectionCloseSafely(connection: WebSocketConnection, code?: number, reason?: string): void {
+    try {
+      this.removeConnection(connection.id);
+      console.log(`WebSocket client disconnected: ${connection.id} (code: ${code}, reason: ${reason})`);
+    } catch (error) {
+      const wsError = errorHandler.handleWebSocketError(error, 'Connection close cleanup', connection.id);
+      console.error(`Error during connection close cleanup for ${connection.id}:`, wsError.message);
+    }
+  }
+
+  /**
+   * Handle connection errors safely
+   */
+  private handleConnectionErrorSafely(connection: WebSocketConnection, error: any): void {
+    try {
+      this.removeConnection(connection.id);
+    } catch (cleanupError) {
+      const wsError = errorHandler.handleWebSocketError(cleanupError, 'Error cleanup', connection.id);
+      console.error(`Error during error cleanup for ${connection.id}:`, wsError.message);
+    }
+  }
+
+  /**
+   * Send message to client safely
+   */
+  private sendToClientSafely(clientId: string, message: WebSocketMessage): boolean {
+    try {
+      return this.sendToClient(clientId, message);
+    } catch (error) {
+      const wsError = errorHandler.handleWebSocketError(error, 'Send to client', clientId);
+      console.error(`Error sending message to client ${clientId}:`, wsError.message);
+      return false;
+    }
+  }
+
+  /**
+   * Send message to connection safely
+   */
+  private sendToConnectionSafely(connection: WebSocketConnection, message: WebSocketMessage): void {
+    try {
+      this.sendToConnection(connection, message);
+    } catch (error) {
+      const wsError = errorHandler.handleWebSocketError(error, 'Send to connection', connection.id);
+      console.error(`Error sending message to connection ${connection.id}:`, wsError.message);
+      this.handleConnectionErrorSafely(connection, wsError);
+    }
+  }
+
+  /**
+   * Send error message to client
+   */
+  private sendErrorToClient(connection: WebSocketConnection, error: any): void {
+    try {
+      const errorMessage: WebSocketMessage = {
+        type: 'state-sync',
+        timestamp: new Date().toISOString(),
+        data: {
+          type: 'error',
+          error: error.userMessage || error.message || 'Unknown error',
+          code: error.code || 'WEBSOCKET_ERROR',
+          recoverable: error.recoverable || false,
+        },
+      };
+
+      this.sendToConnectionSafely(connection, errorMessage);
+    } catch (sendError) {
+      console.error(`Failed to send error message to client ${connection.id}:`, sendError);
+    }
+  }
+
+  /**
+   * Disconnect all clients gracefully
+   */
+  private disconnectAllClientsGracefully(): void {
+    try {
+      const connections = Array.from(this.state.connections.values());
+
+      // Send shutdown notification to all clients
+      const shutdownMessage: WebSocketMessage = {
+        type: 'state-sync',
+        timestamp: new Date().toISOString(),
+        data: {
+          type: 'server-shutdown',
+          message: 'Server is shutting down',
+        },
+      };
+
+      connections.forEach(connection => {
+        try {
+          this.sendToConnectionSafely(connection, shutdownMessage);
+          
+          // Give a brief moment for the message to be sent
+          setTimeout(() => {
+            this.closeConnectionSafely(connection);
+          }, 100);
+        } catch (error) {
+          console.error(`Error during graceful disconnect of ${connection.id}:`, error);
+          this.closeConnectionSafely(connection);
+        }
+      });
+
+      // Clear connections after a delay
+      setTimeout(() => {
+        this.state.connections.clear();
+        this.state.stats.activeConnections = 0;
+      }, 500);
+
+    } catch (error) {
+      const wsError = errorHandler.handleWebSocketError(error, 'Graceful disconnect all');
+      console.error('Error during graceful disconnect of all clients:', wsError.message);
+      
+      // Fallback to force disconnect
+      this.disconnectAllClients();
+    }
+  }
+
+  /**
+   * Close connection safely
+   */
+  private closeConnectionSafely(connection: WebSocketConnection): void {
+    try {
+      if (connection.socket && !connection.socket.destroyed) {
+        connection.socket.close();
+      }
+    } catch (error) {
+      console.error(`Error closing connection ${connection.id}:`, error);
+      try {
+        connection.socket.destroy();
+      } catch (destroyError) {
+        console.error(`Error destroying connection ${connection.id}:`, destroyError);
+      }
+    }
+    
+    this.removeConnection(connection.id);
+  }
+
+  /**
+   * Send queued messages to a specific connection
+   */
+  private sendQueuedMessagesToConnection(connection: WebSocketConnection): void {
+    try {
+      if (this.state.messageQueue.length === 0) {
+        return;
+      }
+
+      // Send recent messages to the new connection
+      const recentMessages = this.state.messageQueue.slice(-10); // Last 10 messages
+
+      recentMessages.forEach(message => {
+        this.sendToConnectionSafely(connection, message);
+      });
+    } catch (error) {
+      const wsError = errorHandler.handleWebSocketError(error, 'Send queued messages', connection.id);
+      console.error(`Error sending queued messages to ${connection.id}:`, wsError.message);
+    }
   }
 }
 

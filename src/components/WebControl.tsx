@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme';
 import { webServerService } from '../services';
+import { errorHandler, networkResilience } from '../utils';
 import type { ServerStatus } from '../types';
 
 interface WebControlProps {
@@ -33,6 +34,11 @@ export const WebControl: React.FC<WebControlProps> = ({
     activeConnections: 0,
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [networkStatus, setNetworkStatus] = useState<{
+    isConnected: boolean;
+    lastError?: string;
+  }>({ isConnected: true });
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Update server status
   const updateServerStatus = useCallback(() => {
@@ -41,16 +47,56 @@ export const WebControl: React.FC<WebControlProps> = ({
     onServerStatusChange?.(status);
   }, [onServerStatusChange]);
 
-  // Initialize server status on mount
+  // Initialize server status and error handling on mount
   useEffect(() => {
     updateServerStatus();
+    setupErrorHandling();
+    setupNetworkMonitoring();
   }, [updateServerStatus]);
+
+  // Setup error handling
+  const setupErrorHandling = useCallback(() => {
+    const removeErrorListener = errorHandler.addErrorListener((error) => {
+      if (error.code.startsWith('SERVER_') || error.code.startsWith('WEBSOCKET_')) {
+        setErrorMessage(error.userMessage || error.message);
+        
+        // Clear error message after 5 seconds
+        setTimeout(() => {
+          setErrorMessage(null);
+        }, 5000);
+      }
+    });
+
+    return removeErrorListener;
+  }, []);
+
+  // Setup network monitoring
+  const setupNetworkMonitoring = useCallback(() => {
+    const removeNetworkListener = networkResilience.addConnectionListener({
+      onConnected: () => {
+        setNetworkStatus({ isConnected: true });
+      },
+      onDisconnected: (error) => {
+        setNetworkStatus({ 
+          isConnected: false, 
+          lastError: error?.userMessage || error?.message 
+        });
+      },
+      onReconnected: () => {
+        setNetworkStatus({ isConnected: true });
+      },
+    });
+
+    return removeNetworkListener;
+  }, []);
 
   // Handle server start
   const handleStartServer = useCallback(async () => {
     if (isLoading || serverStatus.isRunning) return;
 
     setIsLoading(true);
+    setErrorMessage(null);
+    
     try {
       const serverInfo = await webServerService.startServer();
       updateServerStatus();
@@ -61,10 +107,21 @@ export const WebControl: React.FC<WebControlProps> = ({
         [{ text: 'OK' }]
       );
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      setErrorMessage(errorMsg);
+      
       Alert.alert(
         'Server Start Failed',
-        `Failed to start web server: ${error}`,
-        [{ text: 'OK' }]
+        `Failed to start web server:\n\n${errorMsg}`,
+        [
+          { text: 'OK' },
+          {
+            text: 'Retry',
+            onPress: () => {
+              setTimeout(() => handleStartServer(), 1000);
+            },
+          },
+        ]
       );
     } finally {
       setIsLoading(false);
@@ -88,14 +145,34 @@ export const WebControl: React.FC<WebControlProps> = ({
           style: 'destructive',
           onPress: async () => {
             setIsLoading(true);
+            setErrorMessage(null);
+            
             try {
               await webServerService.stopServer();
               updateServerStatus();
             } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              setErrorMessage(errorMsg);
+              
               Alert.alert(
                 'Server Stop Failed',
-                `Failed to stop web server: ${error}`,
-                [{ text: 'OK' }]
+                `Failed to stop web server:\n\n${errorMsg}`,
+                [
+                  { text: 'OK' },
+                  {
+                    text: 'Force Stop',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        // Force cleanup by destroying the service
+                        await (webServerService as any).destroy?.();
+                        updateServerStatus();
+                      } catch (forceError) {
+                        console.error('Force stop error:', forceError);
+                      }
+                    },
+                  },
+                ]
               );
             } finally {
               setIsLoading(false);
@@ -112,22 +189,57 @@ export const WebControl: React.FC<WebControlProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Web Control</Text>
-        <View style={styles.statusIndicator}>
-          <View
-            style={[
-              styles.statusDot,
-              {
-                backgroundColor: serverStatus.isRunning
-                  ? theme.colors.success
-                  : theme.colors.error,
-              },
-            ]}
-          />
-          <Text style={styles.statusText}>
-            {serverStatus.isRunning ? 'Running' : 'Stopped'}
-          </Text>
+        <View style={styles.statusContainer}>
+          <View style={styles.statusIndicator}>
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor: serverStatus.isRunning
+                    ? theme.colors.success
+                    : theme.colors.error,
+                },
+              ]}
+            />
+            <Text style={styles.statusText}>
+              {serverStatus.isRunning ? 'Running' : 'Stopped'}
+            </Text>
+          </View>
+          {serverStatus.isRunning && (
+            <View style={styles.networkIndicator}>
+              <View
+                style={[
+                  styles.networkDot,
+                  {
+                    backgroundColor: networkStatus.isConnected
+                      ? theme.colors.success
+                      : theme.colors.warning,
+                  },
+                ]}
+              />
+              <Text style={styles.networkText}>
+                {networkStatus.isConnected ? 'Connected' : 'Network Issue'}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
+
+      {errorMessage && (
+        <View style={[styles.errorContainer, { backgroundColor: theme.colors.error + '20' }]}>
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>
+            {errorMessage}
+          </Text>
+        </View>
+      )}
+
+      {!networkStatus.isConnected && networkStatus.lastError && (
+        <View style={[styles.warningContainer, { backgroundColor: theme.colors.warning + '20' }]}>
+          <Text style={[styles.warningText, { color: theme.colors.warning }]}>
+            Network: {networkStatus.lastError}
+          </Text>
+        </View>
+      )}
 
       {serverStatus.isRunning && (
         <View style={styles.serverInfo}>
@@ -225,9 +337,13 @@ const createStyles = (theme: any) =>
       fontWeight: theme.typography.weights.bold,
       color: theme.colors.text,
     },
+    statusContainer: {
+      alignItems: 'flex-end',
+    },
     statusIndicator: {
       flexDirection: 'row',
       alignItems: 'center',
+      marginBottom: theme.spacing.xs,
     },
     statusDot: {
       width: 8,
@@ -239,6 +355,45 @@ const createStyles = (theme: any) =>
       fontSize: theme.typography.sizes.sm,
       color: theme.colors.text,
       fontWeight: theme.typography.weights.medium,
+    },
+    networkIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    networkDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      marginRight: theme.spacing.xs,
+    },
+    networkText: {
+      fontSize: theme.typography.sizes.xs,
+      color: theme.colors.text,
+      opacity: 0.7,
+    },
+    errorContainer: {
+      borderRadius: theme.borderRadius.sm,
+      padding: theme.spacing.sm,
+      marginBottom: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: theme.colors.error + '40',
+    },
+    errorText: {
+      fontSize: theme.typography.sizes.sm,
+      fontWeight: theme.typography.weights.medium,
+      textAlign: 'center',
+    },
+    warningContainer: {
+      borderRadius: theme.borderRadius.sm,
+      padding: theme.spacing.sm,
+      marginBottom: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: theme.colors.warning + '40',
+    },
+    warningText: {
+      fontSize: theme.typography.sizes.sm,
+      fontWeight: theme.typography.weights.medium,
+      textAlign: 'center',
     },
     serverInfo: {
       backgroundColor: theme.colors.background,

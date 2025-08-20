@@ -15,6 +15,8 @@ import {
   WebSocketMessage,
   WebSocketMessageType,
 } from '../types';
+import { errorHandler } from '../utils/ErrorHandler';
+import { networkResilience } from '../utils/NetworkResilience';
 
 export interface WebControlBridgeState {
   biometricStatus: BiometricStatus;
@@ -62,6 +64,8 @@ export class WebControlBridge {
   private logUpdateListeners: Set<LogUpdateListener> = new Set();
   private operationStatusListeners: Set<OperationStatusListener> = new Set();
   private currentOperationId: string | null = null;
+  private operationTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private readonly OPERATION_TIMEOUT = 60000; // 60 seconds
 
   constructor(initialState?: Partial<WebControlBridgeState>) {
     this.state = {
@@ -81,13 +85,22 @@ export class WebControlBridge {
    */
   async initialize(): Promise<void> {
     try {
-      // Check biometric availability
-      const biometricStatus = await biometricService.checkBiometricAvailability();
+      // Setup error handling
+      this.setupErrorHandling();
+
+      // Check biometric availability with retry
+      const biometricStatus = await networkResilience.executeWithRetry(
+        () => biometricService.checkBiometricAvailability(),
+        'Biometric availability check'
+      );
       this.updateState({ biometricStatus });
 
       // Check if keys exist
       if (biometricStatus.available) {
-        const keysExist = await biometricService.checkKeysExist();
+        const keysExist = await networkResilience.executeWithRetry(
+          () => biometricService.checkKeysExist(),
+          'Keys existence check'
+        );
         this.updateState({ keysExist });
       }
 
@@ -99,13 +112,16 @@ export class WebControlBridge {
         message: 'WebControlBridge initialized successfully',
       });
     } catch (error) {
+      const appError = errorHandler.handleApplicationError(error, 'WebControlBridge initialization');
       this.addLog({
         id: this.generateId(),
         timestamp: new Date(),
         operation: 'status',
         status: 'error',
-        message: `Failed to initialize WebControlBridge: ${this.getErrorMessage(error)}`,
+        message: `Failed to initialize WebControlBridge: ${appError.userMessage || appError.message}`,
+        details: appError,
       });
+      throw error;
     }
   }
 
@@ -119,6 +135,7 @@ export class WebControlBridge {
     try {
       this.updateState({ isLoading: true });
       this.notifyOperationStart('enroll', operationId);
+      this.setOperationTimeout(operationId);
 
       // Use provided config or current state config
       const enrollConfig = config || this.state.enrollEndpoint;
@@ -140,9 +157,12 @@ export class WebControlBridge {
         message: 'Creating biometric keys...',
       });
 
-      // Create biometric keys
-      const createKeysResult = await biometricService.createKeys(
-        'Authenticate to create biometric keys for enrollment'
+      // Create biometric keys with retry
+      const createKeysResult = await networkResilience.executeWithRetry(
+        () => biometricService.createKeys(
+          'Authenticate to create biometric keys for enrollment'
+        ),
+        'Biometric key creation'
       );
 
       if (!createKeysResult.success) {
@@ -172,9 +192,10 @@ export class WebControlBridge {
           message: `Sending public key to enrollment endpoint: ${enrollConfig.url}`,
         });
 
-        const enrollResult = await biometricAPIService.enrollPublicKey(
-          enrollConfig,
-          publicKey
+        const enrollResult = await networkResilience.executeWithRetry(
+          () => biometricAPIService.enrollPublicKey(enrollConfig, publicKey),
+          'Backend enrollment',
+          2 // Fewer retries for backend calls
         );
 
         if (!enrollResult.success) {
@@ -227,9 +248,11 @@ export class WebControlBridge {
 
       return result;
     } catch (error) {
+      const appError = errorHandler.handleApplicationError(error, 'Enrollment operation');
+      
       const errorResult: OperationResult = {
         success: false,
-        message: this.getErrorMessage(error),
+        message: appError.userMessage || appError.message,
         timestamp: new Date(),
       };
 
@@ -239,7 +262,7 @@ export class WebControlBridge {
         operation: 'enroll',
         status: 'error',
         message: errorResult.message,
-        details: error,
+        details: appError,
       });
 
       this.updateState({ operationStatus: errorResult, isLoading: false });
@@ -247,6 +270,7 @@ export class WebControlBridge {
 
       return errorResult;
     } finally {
+      this.clearOperationTimeout(operationId);
       this.currentOperationId = null;
     }
   }
@@ -676,6 +700,405 @@ export class WebControlBridge {
       return error;
     }
     return 'Unknown error occurred';
+  }
+
+  /**
+   * Setup error handling for the bridge
+   */
+  private setupErrorHandling(): void {
+    // Add error listener to handle application errors
+    errorHandler.addErrorListener((error) => {
+      if (error.context?.includes('WebControlBridge') || error.code.startsWith('APP_')) {
+        this.addLog({
+          id: this.generateId(),
+          timestamp: new Date(),
+          operation: 'status',
+          status: 'error',
+          message: `Error handled: ${error.userMessage || error.message}`,
+          details: error,
+        });
+      }
+    });
+
+    // Setup network resilience monitoring
+    networkResilience.addConnectionListener({
+      onDisconnected: (error) => {
+        this.addLog({
+          id: this.generateId(),
+          timestamp: new Date(),
+          operation: 'status',
+          status: 'info',
+          message: 'Network connection lost, operations may be affected',
+        });
+      },
+      onReconnected: () => {
+        this.addLog({
+          id: this.generateId(),
+          timestamp: new Date(),
+          operation: 'status',
+          status: 'success',
+          message: 'Network connection restored',
+        });
+      },
+    });
+  }
+
+  /**
+   * Set operation timeout
+   */
+  private setOperationTimeout(operationId: string): void {
+    const timeoutId = setTimeout(() => {
+      if (this.currentOperationId === operationId) {
+        this.handleOperationTimeout(operationId);
+      }
+    }, this.OPERATION_TIMEOUT);
+
+    this.operationTimeouts.set(operationId, timeoutId);
+  }
+
+  /**
+   * Clear operation timeout
+   */
+  private clearOperationTimeout(operationId: string): void {
+    const timeoutId = this.operationTimeouts.get(operationId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      this.operationTimeouts.delete(operationId);
+    }
+  }
+
+  /**
+   * Handle operation timeout
+   */
+  private handleOperationTimeout(operationId: string): void {
+    const timeoutError = new Error('Operation timed out');
+    const appError = errorHandler.handleApplicationError(timeoutError, 'Operation timeout');
+
+    this.addLog({
+      id: this.generateId(),
+      timestamp: new Date(),
+      operation: 'status',
+      status: 'error',
+      message: `Operation ${operationId} timed out after ${this.OPERATION_TIMEOUT / 1000} seconds`,
+      details: appError,
+    });
+
+    // Cancel current operation
+    this.cancelCurrentOperation();
+
+    // Notify listeners
+    const errorResult: OperationResult = {
+      success: false,
+      message: appError.userMessage || 'Operation timed out',
+      timestamp: new Date(),
+    };
+
+    this.updateState({ operationStatus: errorResult, isLoading: false });
+    this.notifyOperationComplete('status', operationId, errorResult);
+  }
+
+  /**
+   * Enhanced cancel current operation with cleanup
+   */
+  cancelCurrentOperation(): void {
+    if (this.currentOperationId) {
+      // Clear timeout
+      this.clearOperationTimeout(this.currentOperationId);
+
+      this.addLog({
+        id: this.generateId(),
+        timestamp: new Date(),
+        operation: 'status',
+        status: 'info',
+        message: 'Operation cancelled by user or timeout',
+      });
+
+      this.updateState({ isLoading: false });
+      this.currentOperationId = null;
+    }
+  }
+
+  /**
+   * Enhanced validation and delete operations with similar error handling
+   */
+  async executeValidation(config?: EndpointConfig): Promise<OperationResult> {
+    const operationId = this.generateId();
+    this.currentOperationId = operationId;
+
+    try {
+      this.updateState({ isLoading: true });
+      this.notifyOperationStart('validate', operationId);
+      this.setOperationTimeout(operationId);
+
+      // Use provided config or current state config
+      const validateConfig = config || this.state.validateEndpoint;
+
+      // Validate prerequisites
+      if (!this.state.biometricStatus.available) {
+        throw new Error(
+          `Biometric sensors not available: ${
+            this.state.biometricStatus.error || 'Unknown reason'
+          }`
+        );
+      }
+
+      if (!this.state.keysExist) {
+        throw new Error(
+          'No biometric keys found. Please enroll first before attempting validation.'
+        );
+      }
+
+      this.addLog({
+        id: this.generateId(),
+        timestamp: new Date(),
+        operation: 'validate',
+        status: 'info',
+        message: 'Generating payload for signature...',
+      });
+
+      // Generate payload for signature
+      const payload = biometricService.generatePayload(validateConfig.customPayload);
+      const payloadType = validateConfig.customPayload ? 'custom' : 'timestamp';
+
+      this.addLog({
+        id: this.generateId(),
+        timestamp: new Date(),
+        operation: 'validate',
+        status: 'info',
+        message: `Generated ${payloadType} payload: ${payload}`,
+      });
+
+      // Create signature with biometric authentication
+      this.addLog({
+        id: this.generateId(),
+        timestamp: new Date(),
+        operation: 'validate',
+        status: 'info',
+        message: 'Requesting biometric authentication for signature creation...',
+      });
+
+      const signatureResult = await networkResilience.executeWithRetry(
+        () => biometricService.createSignature({
+          promptMessage: 'Authenticate to create signature for validation',
+          payload,
+          cancelButtonText: 'Cancel Validation',
+        }),
+        'Biometric signature creation'
+      );
+
+      if (!signatureResult.success) {
+        throw new Error(`Signature creation failed: ${signatureResult.message}`);
+      }
+
+      const signature = signatureResult.data.signature;
+
+      this.addLog({
+        id: this.generateId(),
+        timestamp: new Date(),
+        operation: 'validate',
+        status: 'success',
+        message: `Signature created successfully. Length: ${signature.length} characters`,
+      });
+
+      let result: OperationResult;
+
+      // Send to backend for validation if endpoint is configured
+      if (validateConfig.url) {
+        this.addLog({
+          id: this.generateId(),
+          timestamp: new Date(),
+          operation: 'validate',
+          status: 'info',
+          message: `Sending signature to validation endpoint: ${validateConfig.url}`,
+        });
+
+        const validationResult = await networkResilience.executeWithRetry(
+          () => biometricAPIService.validateSignature(validateConfig, signature, payload),
+          'Backend validation',
+          2 // Fewer retries for backend calls
+        );
+
+        if (!validationResult.success) {
+          throw new Error(`Backend validation failed: ${validationResult.message}`);
+        }
+
+        this.addLog({
+          id: this.generateId(),
+          timestamp: new Date(),
+          operation: 'validate',
+          status: 'success',
+          message: 'Signature successfully validated by backend server',
+        });
+
+        result = {
+          success: true,
+          message: 'Validation completed successfully',
+          data: {
+            signature,
+            payload,
+            backendResponse: validationResult.data,
+            endpoint: validateConfig.url,
+            method: validateConfig.method,
+            validationTimestamp: new Date().toISOString(),
+          },
+          timestamp: new Date(),
+        };
+      } else {
+        this.addLog({
+          id: this.generateId(),
+          timestamp: new Date(),
+          operation: 'validate',
+          status: 'info',
+          message: 'No validation endpoint configured - signature created locally only',
+        });
+
+        result = {
+          success: true,
+          message: 'Local validation completed successfully',
+          data: {
+            signature,
+            payload,
+            localOnly: true,
+            validationTimestamp: new Date().toISOString(),
+          },
+          timestamp: new Date(),
+        };
+      }
+
+      this.updateState({ operationStatus: result, isLoading: false });
+      this.notifyOperationComplete('validate', operationId, result);
+
+      return result;
+    } catch (error) {
+      const appError = errorHandler.handleApplicationError(error, 'Validation operation');
+      
+      const errorResult: OperationResult = {
+        success: false,
+        message: appError.userMessage || appError.message,
+        timestamp: new Date(),
+      };
+
+      this.addLog({
+        id: this.generateId(),
+        timestamp: new Date(),
+        operation: 'validate',
+        status: 'error',
+        message: errorResult.message,
+        details: appError,
+      });
+
+      this.updateState({ operationStatus: errorResult, isLoading: false });
+      this.notifyOperationComplete('validate', operationId, errorResult);
+
+      return errorResult;
+    } finally {
+      this.clearOperationTimeout(operationId);
+      this.currentOperationId = null;
+    }
+  }
+
+  /**
+   * Enhanced delete keys operation with error handling
+   */
+  async deleteKeys(): Promise<OperationResult> {
+    const operationId = this.generateId();
+    this.currentOperationId = operationId;
+
+    try {
+      this.updateState({ isLoading: true });
+      this.notifyOperationStart('delete', operationId);
+      this.setOperationTimeout(operationId);
+
+      this.addLog({
+        id: this.generateId(),
+        timestamp: new Date(),
+        operation: 'delete',
+        status: 'info',
+        message: 'Deleting biometric keys...',
+      });
+
+      const deleteResult = await networkResilience.executeWithRetry(
+        () => biometricService.deleteKeys(),
+        'Biometric key deletion'
+      );
+
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.message);
+      }
+
+      // Update keys exist status
+      this.updateState({ keysExist: false });
+
+      this.addLog({
+        id: this.generateId(),
+        timestamp: new Date(),
+        operation: 'delete',
+        status: 'success',
+        message: 'Biometric keys deleted successfully',
+      });
+
+      const result: OperationResult = {
+        success: true,
+        message: 'Keys deleted successfully',
+        data: deleteResult.data,
+        timestamp: new Date(),
+      };
+
+      this.updateState({ operationStatus: result, isLoading: false });
+      this.notifyOperationComplete('delete', operationId, result);
+
+      return result;
+    } catch (error) {
+      const appError = errorHandler.handleApplicationError(error, 'Delete keys operation');
+      
+      const errorResult: OperationResult = {
+        success: false,
+        message: appError.userMessage || appError.message,
+        timestamp: new Date(),
+      };
+
+      this.addLog({
+        id: this.generateId(),
+        timestamp: new Date(),
+        operation: 'delete',
+        status: 'error',
+        message: errorResult.message,
+        details: appError,
+      });
+
+      this.updateState({ operationStatus: errorResult, isLoading: false });
+      this.notifyOperationComplete('delete', operationId, errorResult);
+
+      return errorResult;
+    } finally {
+      this.clearOperationTimeout(operationId);
+      this.currentOperationId = null;
+    }
+  }
+
+  /**
+   * Cleanup method for service destruction
+   */
+  async destroy(): Promise<void> {
+    try {
+      // Cancel any running operations
+      this.cancelCurrentOperation();
+
+      // Clear all timeouts
+      this.operationTimeouts.forEach((timeoutId) => {
+        clearTimeout(timeoutId);
+      });
+      this.operationTimeouts.clear();
+
+      // Clear listeners
+      this.stateChangeListeners.clear();
+      this.logUpdateListeners.clear();
+      this.operationStatusListeners.clear();
+
+      console.log('WebControlBridge destroyed');
+    } catch (error) {
+      console.error('Error during WebControlBridge destruction:', error);
+    }
   }
 }
 

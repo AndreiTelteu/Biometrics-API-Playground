@@ -1,8 +1,11 @@
 import TcpSocket from 'react-native-tcp-socket';
+import { AppState } from 'react-native';
 import { ServerInfo, AuthCredentials, ServerStatus } from '../types';
 import { AuthenticationMiddleware } from './AuthenticationMiddleware';
 import { webControlBridge, WebRequest, WebResponse } from './WebControlBridge';
 import { webSocketManager } from './WebSocketManager';
+import { errorHandler, ServerErrorDetails } from '../utils/ErrorHandler';
+import { networkResilience } from '../utils/NetworkResilience';
 
 /**
  * Parsed HTTP request structure
@@ -34,9 +37,15 @@ export class WebServerService {
   private readonly DEFAULT_PORT_RANGE = { min: 8080, max: 8090 };
   private readonly MAX_PORT_ATTEMPTS = 10;
   private server: any = null;
+  private appStateSubscription: any = null;
+  private isShuttingDown: boolean = false;
+  private connectionCleanupTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly CONNECTION_CLEANUP_INTERVAL = 30000; // 30 seconds
 
   constructor() {
     this.authMiddleware = new AuthenticationMiddleware();
+    this.setupAppStateListener();
+    this.setupErrorHandling();
   }
 
   /**
@@ -46,31 +55,34 @@ export class WebServerService {
    */
   async startServer(preferredPort?: number): Promise<ServerInfo> {
     if (this.serverStatus.isRunning) {
-      throw new Error('Server is already running');
+      const error = new Error('Server is already running');
+      errorHandler.handleServerError(error, 'Start server');
+      throw error;
+    }
+
+    if (this.isShuttingDown) {
+      const error = new Error('Server is shutting down, please wait');
+      errorHandler.handleServerError(error, 'Start server');
+      throw error;
     }
 
     try {
-      const port = await this.findAvailablePort(preferredPort);
+      const port = await this.findAvailablePortWithRetry(preferredPort);
       const credentials = this.generateAuthCredentials();
 
       // Configure authentication middleware
       this.authMiddleware.setCredentials(credentials);
 
-      // Create TCP server
+      // Create TCP server with error handling
       this.server = TcpSocket.createServer((socket: any) => {
-        this.handleConnection(socket);
+        this.handleConnectionWithErrorHandling(socket);
       });
 
-      // Start listening
-      await new Promise<void>((resolve, reject) => {
-        this.server.listen({ port, host: '0.0.0.0' }, (error: any) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve();
-          }
-        });
-      });
+      // Set up server error handlers
+      this.setupServerErrorHandlers();
+
+      // Start listening with timeout
+      await this.startServerWithTimeout(port);
 
       // Update server status
       this.serverStatus = {
@@ -84,6 +96,17 @@ export class WebServerService {
 
       this.authCredentials = credentials;
 
+      // Start connection cleanup timer
+      this.startConnectionCleanup();
+
+      // Initialize WebSocket manager
+      webSocketManager.initialize();
+
+      // Mark network as connected
+      networkResilience.markConnected();
+
+      console.log(`Web server started successfully on port ${port}`);
+
       return {
         port,
         url: this.serverStatus.url!,
@@ -91,7 +114,12 @@ export class WebServerService {
         isRunning: true,
       };
     } catch (error) {
-      throw new Error(`Failed to start server: ${error}`);
+      const serverError = errorHandler.handleServerError(error, 'Start server');
+      
+      // Clean up any partial state
+      await this.cleanupFailedStart();
+      
+      throw new Error(serverError.userMessage || serverError.message);
     }
   }
 
@@ -99,16 +127,28 @@ export class WebServerService {
    * Stops the web server
    */
   async stopServer(): Promise<void> {
-    if (!this.serverStatus.isRunning) {
+    if (!this.serverStatus.isRunning && !this.isShuttingDown) {
       return;
     }
 
-    try {
-      if (this.server) {
-        this.server.close();
-        this.server = null;
-      }
+    this.isShuttingDown = true;
 
+    try {
+      console.log('Stopping web server...');
+
+      // Stop connection cleanup timer
+      this.stopConnectionCleanup();
+
+      // Shutdown WebSocket manager first
+      webSocketManager.shutdown();
+
+      // Mark network as disconnected
+      networkResilience.markDisconnected();
+
+      // Close server with timeout
+      await this.stopServerWithTimeout();
+
+      // Reset server status
       this.serverStatus = {
         isRunning: false,
         port: null,
@@ -120,8 +160,19 @@ export class WebServerService {
 
       this.authCredentials = null;
       this.authMiddleware.clearCredentials();
+      this.server = null;
+
+      console.log('Web server stopped successfully');
     } catch (error) {
-      throw new Error(`Failed to stop server: ${error}`);
+      const serverError = errorHandler.handleServerError(error, 'Stop server');
+      console.error('Error stopping server:', serverError.message);
+      
+      // Force cleanup even if there was an error
+      this.forceCleanup();
+      
+      throw new Error(serverError.userMessage || serverError.message);
+    } finally {
+      this.isShuttingDown = false;
     }
   }
 
@@ -805,5 +856,465 @@ window.ResponseViewer = ResponseViewer;
    */
   updateActiveConnections(count: number): void {
     this.serverStatus.activeConnections = count;
+  }
+
+  /**
+   * Setup app state listener for automatic shutdown
+   */
+  private setupAppStateListener(): void {
+    this.appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // App is going to background, consider stopping server after delay
+        setTimeout(() => {
+          if (AppState.currentState === 'background') {
+            this.handleAppBackground();
+          }
+        }, 5000); // 5 second delay to avoid stopping during brief background states
+      }
+    });
+  }
+
+  /**
+   * Setup error handling for the service
+   */
+  private setupErrorHandling(): void {
+    // Add error listener to handle server errors
+    errorHandler.addErrorListener((error) => {
+      if (error.code.startsWith('SERVER_')) {
+        console.log(`Server error handled: ${error.code} - ${error.message}`);
+      }
+    });
+
+    // Setup network resilience
+    networkResilience.initialize({
+      maxAttempts: 3,
+      initialDelay: 2000,
+      maxDelay: 10000,
+    });
+  }
+
+  /**
+   * Handle app going to background
+   */
+  private async handleAppBackground(): void {
+    if (this.serverStatus.isRunning) {
+      console.log('App went to background, stopping web server...');
+      try {
+        await this.stopServer();
+      } catch (error) {
+        console.error('Error stopping server on app background:', error);
+      }
+    }
+  }
+
+  /**
+   * Find available port with retry logic
+   */
+  private async findAvailablePortWithRetry(preferredPort?: number): Promise<number> {
+    const maxRetries = 3;
+    let lastError: any;
+
+    for (let retry = 0; retry < maxRetries; retry++) {
+      try {
+        return await this.findAvailablePort(preferredPort);
+      } catch (error) {
+        lastError = error;
+        
+        if (retry < maxRetries - 1) {
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retry + 1)));
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
+  /**
+   * Start server with timeout
+   */
+  private async startServerWithTimeout(port: number): Promise<void> {
+    const timeout = 10000; // 10 seconds
+
+    return new Promise<void>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Server start timeout'));
+      }, timeout);
+
+      this.server.listen({ port, host: '0.0.0.0' }, (error: any) => {
+        clearTimeout(timeoutId);
+        
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  /**
+   * Stop server with timeout
+   */
+  private async stopServerWithTimeout(): Promise<void> {
+    if (!this.server) {
+      return;
+    }
+
+    const timeout = 5000; // 5 seconds
+
+    return new Promise<void>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        console.warn('Server stop timeout, forcing cleanup');
+        this.forceCleanup();
+        resolve();
+      }, timeout);
+
+      try {
+        this.server.close(() => {
+          clearTimeout(timeoutId);
+          resolve();
+        });
+      } catch (error) {
+        clearTimeout(timeoutId);
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Setup server error handlers
+   */
+  private setupServerErrorHandlers(): void {
+    if (!this.server) return;
+
+    this.server.on('error', (error: any) => {
+      const serverError = errorHandler.handleServerError(error, 'Server operation');
+      console.error('Server error:', serverError.message);
+      
+      // If it's a critical error, stop the server
+      if (!serverError.recoverable) {
+        this.handleCriticalServerError(serverError);
+      }
+    });
+
+    this.server.on('close', () => {
+      console.log('Server closed');
+      if (this.serverStatus.isRunning && !this.isShuttingDown) {
+        // Unexpected close
+        console.warn('Server closed unexpectedly');
+        this.handleUnexpectedServerClose();
+      }
+    });
+  }
+
+  /**
+   * Handle connection with comprehensive error handling
+   */
+  private handleConnectionWithErrorHandling(socket: any): void {
+    try {
+      this.serverStatus.activeConnections++;
+
+      // Set up socket error handlers
+      socket.on('error', (error: any) => {
+        const networkError = errorHandler.handleNetworkError(error, 'Socket connection');
+        console.error(`Socket error: ${networkError.message}`);
+        this.cleanupSocket(socket);
+      });
+
+      socket.on('timeout', () => {
+        const error = new Error('Socket timeout');
+        const networkError = errorHandler.handleNetworkError(error, 'Socket connection');
+        console.warn(`Socket timeout: ${networkError.message}`);
+        this.cleanupSocket(socket);
+      });
+
+      socket.on('close', () => {
+        this.serverStatus.activeConnections = Math.max(0, this.serverStatus.activeConnections - 1);
+      });
+
+      // Set socket timeout
+      socket.setTimeout(60000); // 60 seconds
+
+      // Handle data with error handling
+      socket.on('data', (data: any) => {
+        try {
+          const request = data.toString();
+          this.handleHttpRequestWithErrorHandling(socket, request);
+        } catch (error) {
+          const appError = errorHandler.handleApplicationError(error, 'Request processing');
+          console.error('Error handling request:', appError.message);
+          this.sendErrorResponse(socket, 500, appError.userMessage || 'Internal Server Error');
+        }
+      });
+
+    } catch (error) {
+      const serverError = errorHandler.handleServerError(error, 'Connection handling');
+      console.error('Error handling connection:', serverError.message);
+      this.cleanupSocket(socket);
+    }
+  }
+
+  /**
+   * Handle HTTP request with comprehensive error handling
+   */
+  private handleHttpRequestWithErrorHandling(socket: any, request: string): void {
+    try {
+      console.log('Received HTTP request:', request.split('\r\n')[0]);
+
+      // Validate authentication with error handling
+      let authResult;
+      try {
+        authResult = this.authMiddleware.validateRequest(request);
+      } catch (error) {
+        const authError = errorHandler.handleApplicationError(error, 'Authentication');
+        this.sendErrorResponse(socket, 500, authError.userMessage || 'Authentication error');
+        return;
+      }
+
+      if (!authResult.isValid) {
+        this.sendHttpResponse(
+          socket,
+          authResult.statusCode,
+          authResult.body,
+          authResult.headers,
+        );
+        return;
+      }
+
+      // Parse HTTP request with error handling
+      let parsedRequest;
+      try {
+        parsedRequest = this.parseHttpRequest(request);
+      } catch (error) {
+        const parseError = errorHandler.handleApplicationError(error, 'Request parsing');
+        this.sendErrorResponse(socket, 400, parseError.userMessage || 'Bad Request');
+        return;
+      }
+      
+      if (!parsedRequest) {
+        this.sendErrorResponse(socket, 400, 'Invalid request format');
+        return;
+      }
+
+      // Route the request with error handling
+      this.routeRequestWithErrorHandling(socket, parsedRequest);
+    } catch (error) {
+      const appError = errorHandler.handleApplicationError(error, 'HTTP request handling');
+      console.error('Error in HTTP request handling:', appError.message);
+      this.sendErrorResponse(socket, 500, appError.userMessage || 'Internal Server Error');
+    }
+  }
+
+  /**
+   * Route requests with comprehensive error handling
+   */
+  private async routeRequestWithErrorHandling(socket: any, request: ParsedHttpRequest): Promise<void> {
+    try {
+      await this.routeRequest(socket, request);
+    } catch (error) {
+      const routingError = errorHandler.handleApplicationError(error, 'Request routing');
+      console.error('Error routing request:', routingError.message);
+      this.sendErrorResponse(socket, 500, routingError.userMessage || 'Internal Server Error');
+    }
+  }
+
+  /**
+   * Send standardized error response
+   */
+  private sendErrorResponse(socket: any, statusCode: number, message: string): void {
+    try {
+      const errorResponse = {
+        success: false,
+        error: message,
+        timestamp: new Date().toISOString(),
+      };
+
+      this.sendJsonResponse(socket, statusCode, errorResponse);
+    } catch (error) {
+      // Fallback to basic HTTP response if JSON response fails
+      try {
+        this.sendHttpResponse(socket, statusCode, message);
+      } catch (fallbackError) {
+        console.error('Failed to send error response:', fallbackError);
+        // Last resort: close the socket
+        this.cleanupSocket(socket);
+      }
+    }
+  }
+
+  /**
+   * Clean up socket connection
+   */
+  private cleanupSocket(socket: any): void {
+    try {
+      if (socket && !socket.destroyed) {
+        socket.destroy();
+      }
+    } catch (error) {
+      console.error('Error cleaning up socket:', error);
+    }
+    
+    this.serverStatus.activeConnections = Math.max(0, this.serverStatus.activeConnections - 1);
+  }
+
+  /**
+   * Handle critical server errors
+   */
+  private async handleCriticalServerError(error: ServerErrorDetails): void {
+    console.error('Critical server error, stopping server:', error.message);
+    
+    try {
+      await this.stopServer();
+    } catch (stopError) {
+      console.error('Error stopping server after critical error:', stopError);
+      this.forceCleanup();
+    }
+  }
+
+  /**
+   * Handle unexpected server close
+   */
+  private handleUnexpectedServerClose(): void {
+    console.warn('Server closed unexpectedly, cleaning up state');
+    
+    this.serverStatus.isRunning = false;
+    this.serverStatus.activeConnections = 0;
+    
+    // Mark network as disconnected
+    networkResilience.markDisconnected(new Error('Server closed unexpectedly'));
+    
+    // Shutdown WebSocket manager
+    webSocketManager.shutdown();
+  }
+
+  /**
+   * Clean up after failed server start
+   */
+  private async cleanupFailedStart(): void {
+    try {
+      if (this.server) {
+        this.server.close();
+        this.server = null;
+      }
+      
+      this.authCredentials = null;
+      this.authMiddleware.clearCredentials();
+      
+      this.serverStatus = {
+        isRunning: false,
+        port: null,
+        url: null,
+        password: null,
+        startTime: null,
+        activeConnections: 0,
+      };
+    } catch (error) {
+      console.error('Error during cleanup after failed start:', error);
+    }
+  }
+
+  /**
+   * Force cleanup of all resources
+   */
+  private forceCleanup(): void {
+    try {
+      // Stop timers
+      this.stopConnectionCleanup();
+      
+      // Close server
+      if (this.server) {
+        try {
+          this.server.close();
+        } catch (error) {
+          console.error('Error force closing server:', error);
+        }
+        this.server = null;
+      }
+      
+      // Reset state
+      this.serverStatus = {
+        isRunning: false,
+        port: null,
+        url: null,
+        password: null,
+        startTime: null,
+        activeConnections: 0,
+      };
+      
+      this.authCredentials = null;
+      this.authMiddleware.clearCredentials();
+      
+      // Shutdown related services
+      webSocketManager.shutdown();
+      networkResilience.markDisconnected();
+      
+    } catch (error) {
+      console.error('Error in force cleanup:', error);
+    }
+  }
+
+  /**
+   * Start connection cleanup timer
+   */
+  private startConnectionCleanup(): void {
+    if (this.connectionCleanupTimer) {
+      return;
+    }
+
+    this.connectionCleanupTimer = setInterval(() => {
+      this.performConnectionCleanup();
+    }, this.CONNECTION_CLEANUP_INTERVAL);
+  }
+
+  /**
+   * Stop connection cleanup timer
+   */
+  private stopConnectionCleanup(): void {
+    if (this.connectionCleanupTimer) {
+      clearInterval(this.connectionCleanupTimer);
+      this.connectionCleanupTimer = null;
+    }
+  }
+
+  /**
+   * Perform periodic connection cleanup
+   */
+  private performConnectionCleanup(): void {
+    try {
+      // This is a placeholder for connection cleanup logic
+      // In a real implementation, this would check for stale connections
+      if (this.serverStatus.activeConnections < 0) {
+        this.serverStatus.activeConnections = 0;
+      }
+      
+      console.log(`Connection cleanup: ${this.serverStatus.activeConnections} active connections`);
+    } catch (error) {
+      console.error('Error during connection cleanup:', error);
+    }
+  }
+
+  /**
+   * Cleanup on service destruction
+   */
+  async destroy(): Promise<void> {
+    try {
+      // Remove app state listener
+      if (this.appStateSubscription) {
+        this.appStateSubscription.remove();
+        this.appStateSubscription = null;
+      }
+
+      // Stop server if running
+      if (this.serverStatus.isRunning) {
+        await this.stopServer();
+      }
+
+      // Shutdown network resilience
+      networkResilience.shutdown();
+
+    } catch (error) {
+      console.error('Error during WebServerService destruction:', error);
+    }
   }
 }
