@@ -1,5 +1,6 @@
 import TcpSocket from 'react-native-tcp-socket';
 import { ServerInfo, AuthCredentials, ServerStatus } from '../types';
+import { AuthenticationMiddleware } from './AuthenticationMiddleware';
 
 /**
  * WebServerService manages the HTTP server lifecycle for the web control feature.
@@ -16,9 +17,14 @@ export class WebServerService {
   };
 
   private authCredentials: AuthCredentials | null = null;
+  private authMiddleware: AuthenticationMiddleware;
   private readonly DEFAULT_PORT_RANGE = { min: 8080, max: 8090 };
   private readonly MAX_PORT_ATTEMPTS = 10;
   private server: any = null;
+
+  constructor() {
+    this.authMiddleware = new AuthenticationMiddleware();
+  }
 
   /**
    * Starts the web server on an available port
@@ -33,6 +39,9 @@ export class WebServerService {
     try {
       const port = await this.findAvailablePort(preferredPort);
       const credentials = this.generateAuthCredentials();
+
+      // Configure authentication middleware
+      this.authMiddleware.setCredentials(credentials);
 
       // Create TCP server
       this.server = TcpSocket.createServer((socket: any) => {
@@ -97,6 +106,7 @@ export class WebServerService {
       };
 
       this.authCredentials = null;
+      this.authMiddleware.clearCredentials();
     } catch (error) {
       throw new Error(`Failed to stop server: ${error}`);
     }
@@ -207,15 +217,31 @@ export class WebServerService {
   }
 
   /**
-   * Basic HTTP request handler - will be expanded in later tasks
+   * HTTP request handler with authentication
    */
   private handleHttpRequest(socket: any, request: string): void {
-    // Basic HTTP request parsing and handling
-    // This will be expanded in later tasks
     console.log('Received HTTP request:', request.split('\r\n')[0]);
 
-    // For now, just send a basic response
-    this.sendHttpResponse(socket, 200, 'Web Control Server Running');
+    // Validate authentication
+    const authResult = this.authMiddleware.validateRequest(request);
+
+    if (!authResult.isValid) {
+      this.sendHttpResponse(
+        socket,
+        authResult.statusCode,
+        authResult.body,
+        authResult.headers,
+      );
+      return;
+    }
+
+    // Authentication successful - handle the actual request
+    // This will be expanded in later tasks for actual endpoint handling
+    this.sendHttpResponse(
+      socket,
+      200,
+      'Web Control Server Running - Authenticated',
+    );
   }
 
   /**
@@ -225,15 +251,21 @@ export class WebServerService {
     socket: any,
     statusCode: number,
     body: string,
+    headers: { [key: string]: string } = {},
   ): void {
-    const response = [
+    const responseHeaders = [
       `HTTP/1.1 ${statusCode} ${this.getStatusText(statusCode)}`,
       'Content-Type: text/plain',
       'Connection: close',
       `Content-Length: ${body.length}`,
-      '',
-      body,
-    ].join('\r\n');
+    ];
+
+    // Add custom headers
+    Object.entries(headers).forEach(([key, value]) => {
+      responseHeaders.push(`${key}: ${value}`);
+    });
+
+    const response = [...responseHeaders, '', body].join('\r\n');
 
     socket.write(response);
     socket.end();
@@ -247,6 +279,7 @@ export class WebServerService {
       200: 'OK',
       400: 'Bad Request',
       401: 'Unauthorized',
+      403: 'Forbidden',
       404: 'Not Found',
       500: 'Internal Server Error',
     };

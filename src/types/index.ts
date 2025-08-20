@@ -23,4 +23,5 @@ export type {
   AuthCredentials,
   ServerStatus,
   WebControlState,
+  AuthenticationResult,
 } from './webserver';

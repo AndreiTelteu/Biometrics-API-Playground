@@ -36,3 +36,11 @@ export interface WebControlState {
     lastResult: any | null;
   };
 }
+
+export interface AuthenticationResult {
+  isValid: boolean;
+  statusCode: number;
+  statusText: string;
+  headers: { [key: string]: string };
+  body: string;
+}
