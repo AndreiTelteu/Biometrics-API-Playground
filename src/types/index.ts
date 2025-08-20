@@ -3,6 +3,7 @@
  */
 
 export * from './biometrics';
+export * from './webserver';
 
 // Re-export commonly used types for convenience
 export type {
@@ -16,3 +17,10 @@ export type {
   OperationType,
   OperationStatus,
 } from './biometrics';
+
+export type {
+  ServerInfo,
+  AuthCredentials,
+  ServerStatus,
+  WebControlState,
+} from './webserver';
