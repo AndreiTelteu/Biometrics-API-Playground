@@ -283,6 +283,64 @@
             border-bottom: 1px solid #e1e5e9;
             font-weight: 600;
             color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logs-header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .logs-header-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logs-filter-select {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        .logs-search-input {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            width: 150px;
+        }
+
+        .logs-search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-logs-control {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-logs-control:hover {
+            background: #f8f9fa;
+            border-color: #667eea;
+        }
+
+        .btn-logs-control.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
         }
 
         .logs-content {
@@ -496,8 +554,23 @@
                 <!-- Logs section -->
                 <section class="logs-section">
                     <div class="logs-header">
-                        <span class="status-indicator status-disconnected" id="logsStatus"></span>
-                        Real-time Logs
+                        <div class="logs-header-left">
+                            <span class="status-indicator status-disconnected" id="logsStatus"></span>
+                            Real-time Logs
+                        </div>
+                        <div class="logs-header-controls">
+                            <select class="logs-filter-select" id="logLevelFilter">
+                                <option value="all">All Levels</option>
+                                <option value="error">Error</option>
+                                <option value="warn">Warning</option>
+                                <option value="info">Info</option>
+                                <option value="debug">Debug</option>
+                            </select>
+                            <input type="text" class="logs-search-input" id="logSearchInput" placeholder="Search logs...">
+                            <button class="btn-logs-control" id="pauseLogsBtn" title="Pause auto-scroll">
+                                <span id="pauseLogsIcon">⏸️</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="logs-content" id="logsContent">
                         <div style="color: #718096; text-align: center; padding: 2rem;">

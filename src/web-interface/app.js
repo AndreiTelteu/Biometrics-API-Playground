@@ -81,13 +81,28 @@ class WebControlApp {
                 this.handleOperationComplete(message);
                 break;
             case 'log-update':
-                this.logsViewer.addLogEntry(message.data);
+                // Handle both single log entries and batch updates
+                if (Array.isArray(message.data)) {
+                    message.data.forEach(logEntry => {
+                        this.logsViewer.addLogEntry(logEntry);
+                    });
+                } else {
+                    this.logsViewer.addLogEntry(message.data);
+                }
                 break;
             case 'state-sync':
                 this.handleStateSync(message.data);
                 break;
             case 'config-update':
                 this.handleConfigUpdate(message.data);
+                break;
+            case 'logs-batch':
+                // Handle batch log updates for better performance
+                if (message.data && Array.isArray(message.data.logs)) {
+                    message.data.logs.forEach(logEntry => {
+                        this.logsViewer.addLogEntry(logEntry);
+                    });
+                }
                 break;
             default:
                 console.warn('Unknown message type:', message.type);
@@ -124,11 +139,19 @@ class WebControlApp {
             element.className = `status-indicator ${connected ? 'status-connected' : 'status-disconnected'}`;
         });
         
-        if (!connected) {
+        if (connected) {
+            this.logsViewer.addLogEntry({
+                level: 'info',
+                message: 'Connected to mobile app',
+                timestamp: new Date().toISOString(),
+                source: 'web-control'
+            });
+        } else {
             this.logsViewer.addLogEntry({
                 level: 'error',
                 message: 'Connection to mobile app lost',
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                source: 'web-control'
             });
         }
     }
@@ -146,9 +169,10 @@ class WebControlApp {
             const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
             
             this.logsViewer.addLogEntry({
-                level: 'info',
+                level: 'warn',
                 message: `Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                source: 'web-control'
             });
             
             setTimeout(() => {
@@ -157,8 +181,9 @@ class WebControlApp {
         } else {
             this.logsViewer.addLogEntry({
                 level: 'error',
-                message: 'Failed to reconnect after maximum attempts',
-                timestamp: new Date().toISOString()
+                message: 'Failed to reconnect after maximum attempts. Please refresh the page.',
+                timestamp: new Date().toISOString(),
+                source: 'web-control'
             });
         }
     }
@@ -167,8 +192,9 @@ class WebControlApp {
         this.updateConnectionStatus(false);
         this.logsViewer.addLogEntry({
             level: 'error',
-            message: 'WebSocket connection error',
-            timestamp: new Date().toISOString()
+            message: 'WebSocket connection error occurred',
+            timestamp: new Date().toISOString(),
+            source: 'web-control'
         });
     }
     
@@ -652,29 +678,175 @@ class ActionButtons {
 }
 
 /**
- * LogsViewer - Handles real-time log display
+ * LogsViewer - Handles real-time log display with filtering and search
  */
 class LogsViewer {
     constructor() {
         this.maxLogEntries = 1000;
         this.logEntries = [];
+        this.filteredEntries = [];
+        this.currentFilter = 'all';
+        this.searchTerm = '';
+        this.isPaused = false;
+        this.pendingEntries = [];
         this.init();
     }
     
     init() {
         this.logsContent = document.getElementById('logsContent');
+        this.logLevelFilter = document.getElementById('logLevelFilter');
+        this.logSearchInput = document.getElementById('logSearchInput');
+        this.pauseLogsBtn = document.getElementById('pauseLogsBtn');
+        this.pauseLogsIcon = document.getElementById('pauseLogsIcon');
+        
         this.setupAutoScroll();
+        this.setupFilterControls();
+        this.setupSearchControls();
+        this.setupPauseControls();
     }
     
     addLogEntry(logEntry) {
-        this.logEntries.push(logEntry);
+        // Ensure log entry has required fields
+        const normalizedEntry = {
+            level: logEntry.level || 'info',
+            message: logEntry.message || '',
+            timestamp: logEntry.timestamp || new Date().toISOString(),
+            source: logEntry.source || 'app',
+            ...logEntry
+        };
+        
+        this.logEntries.push(normalizedEntry);
         
         // Limit log entries to prevent memory issues
         if (this.logEntries.length > this.maxLogEntries) {
             this.logEntries = this.logEntries.slice(-this.maxLogEntries);
+            this.refreshFilteredEntries();
         }
         
-        this.renderLogEntry(logEntry);
+        if (this.isPaused) {
+            this.pendingEntries.push(normalizedEntry);
+            this.updatePendingIndicator();
+        } else {
+            if (this.matchesCurrentFilter(normalizedEntry)) {
+                this.renderLogEntry(normalizedEntry);
+                this.scrollToBottom();
+            }
+        }
+    }
+    
+    setupFilterControls() {
+        if (this.logLevelFilter) {
+            this.logLevelFilter.addEventListener('change', (e) => {
+                this.currentFilter = e.target.value;
+                this.applyFilters();
+            });
+        }
+    }
+    
+    setupSearchControls() {
+        if (this.logSearchInput) {
+            let searchTimeout;
+            this.logSearchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    this.searchTerm = e.target.value.toLowerCase();
+                    this.applyFilters();
+                }, 300); // Debounce search
+            });
+        }
+    }
+    
+    setupPauseControls() {
+        if (this.pauseLogsBtn) {
+            this.pauseLogsBtn.addEventListener('click', () => {
+                this.togglePause();
+            });
+        }
+    }
+    
+    togglePause() {
+        this.isPaused = !this.isPaused;
+        
+        if (this.pauseLogsBtn && this.pauseLogsIcon) {
+            if (this.isPaused) {
+                this.pauseLogsBtn.classList.add('active');
+                this.pauseLogsIcon.textContent = '▶️';
+                this.pauseLogsBtn.title = 'Resume auto-scroll';
+            } else {
+                this.pauseLogsBtn.classList.remove('active');
+                this.pauseLogsIcon.textContent = '⏸️';
+                this.pauseLogsBtn.title = 'Pause auto-scroll';
+                
+                // Process pending entries
+                this.processPendingEntries();
+            }
+        }
+    }
+    
+    processPendingEntries() {
+        if (this.pendingEntries.length > 0) {
+            this.pendingEntries.forEach(entry => {
+                if (this.matchesCurrentFilter(entry)) {
+                    this.renderLogEntry(entry);
+                }
+            });
+            this.pendingEntries = [];
+            this.scrollToBottom();
+            this.updatePendingIndicator();
+        }
+    }
+    
+    updatePendingIndicator() {
+        // Update pause button to show pending count
+        if (this.pauseLogsBtn && this.isPaused && this.pendingEntries.length > 0) {
+            this.pauseLogsBtn.title = `Resume auto-scroll (${this.pendingEntries.length} pending)`;
+        }
+    }
+    
+    matchesCurrentFilter(logEntry) {
+        // Check level filter
+        if (this.currentFilter !== 'all' && logEntry.level !== this.currentFilter) {
+            return false;
+        }
+        
+        // Check search term
+        if (this.searchTerm && !logEntry.message.toLowerCase().includes(this.searchTerm)) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    applyFilters() {
+        this.refreshFilteredEntries();
+        this.renderAllLogs();
+    }
+    
+    refreshFilteredEntries() {
+        this.filteredEntries = this.logEntries.filter(entry => this.matchesCurrentFilter(entry));
+    }
+    
+    renderAllLogs() {
+        if (!this.logsContent) return;
+        
+        // Clear current content
+        this.logsContent.innerHTML = '';
+        
+        if (this.filteredEntries.length === 0) {
+            this.logsContent.innerHTML = `
+                <div style="color: #718096; text-align: center; padding: 2rem;">
+                    ${this.logEntries.length === 0 ? 'No logs yet.' : 'No logs match current filter.'}
+                </div>
+            `;
+            return;
+        }
+        
+        // Render filtered entries (limit to recent entries for performance)
+        const recentEntries = this.filteredEntries.slice(-500);
+        recentEntries.forEach(entry => {
+            this.renderLogEntry(entry);
+        });
+        
         this.scrollToBottom();
     }
     
@@ -683,14 +855,25 @@ class LogsViewer {
         
         const logElement = document.createElement('div');
         logElement.className = `log-entry log-${logEntry.level || 'info'}`;
+        logElement.dataset.timestamp = logEntry.timestamp;
+        logElement.dataset.level = logEntry.level;
         
         const timestamp = new Date(logEntry.timestamp).toLocaleTimeString();
         const level = (logEntry.level || 'info').toUpperCase();
+        const source = logEntry.source ? `[${logEntry.source}]` : '';
+        
+        // Highlight search term if present
+        let message = this.escapeHtml(logEntry.message);
+        if (this.searchTerm) {
+            const regex = new RegExp(`(${this.escapeRegex(this.searchTerm)})`, 'gi');
+            message = message.replace(regex, '<mark>$1</mark>');
+        }
         
         logElement.innerHTML = `
             <span class="log-timestamp">[${timestamp}]</span>
             <span class="log-level">[${level}]</span>
-            <span class="log-message">${this.escapeHtml(logEntry.message)}</span>
+            ${source ? `<span class="log-source">${source}</span>` : ''}
+            <span class="log-message">${message}</span>
         `;
         
         // Add CSS for log styling if not already added
@@ -710,35 +893,102 @@ class LogsViewer {
                 font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
                 font-size: 0.8rem;
                 line-height: 1.4;
+                padding: 0.125rem 0;
+                border-left: 3px solid transparent;
+                padding-left: 0.5rem;
+                transition: background-color 0.2s ease;
+            }
+            
+            .log-entry:hover {
+                background-color: rgba(255, 255, 255, 0.05);
             }
             
             .log-timestamp {
                 color: #718096;
+                font-size: 0.75rem;
             }
             
             .log-level {
                 font-weight: bold;
                 margin: 0 0.5rem;
+                font-size: 0.75rem;
+                padding: 0.125rem 0.25rem;
+                border-radius: 2px;
+                display: inline-block;
+                min-width: 50px;
+                text-align: center;
+            }
+            
+            .log-source {
+                color: #a0aec0;
+                font-size: 0.75rem;
+                margin-right: 0.5rem;
+            }
+            
+            .log-info {
+                border-left-color: #4299e1;
             }
             
             .log-info .log-level {
                 color: #4299e1;
+                background-color: rgba(66, 153, 225, 0.1);
+            }
+            
+            .log-error {
+                border-left-color: #f56565;
             }
             
             .log-error .log-level {
                 color: #f56565;
+                background-color: rgba(245, 101, 101, 0.1);
+            }
+            
+            .log-warn {
+                border-left-color: #ed8936;
             }
             
             .log-warn .log-level {
                 color: #ed8936;
+                background-color: rgba(237, 137, 54, 0.1);
+            }
+            
+            .log-debug {
+                border-left-color: #9f7aea;
             }
             
             .log-debug .log-level {
                 color: #9f7aea;
+                background-color: rgba(159, 122, 234, 0.1);
             }
             
             .log-message {
                 color: #e2e8f0;
+                word-wrap: break-word;
+            }
+            
+            .log-message mark {
+                background-color: #ffd700;
+                color: #333;
+                padding: 0.125rem 0.25rem;
+                border-radius: 2px;
+            }
+            
+            /* Scrollbar styling for logs */
+            .logs-content::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            .logs-content::-webkit-scrollbar-track {
+                background: #2d3748;
+            }
+            
+            .logs-content::-webkit-scrollbar-thumb {
+                background: #4a5568;
+                border-radius: 4px;
+            }
+            
+            .logs-content::-webkit-scrollbar-thumb:hover {
+                background: #718096;
             }
         `;
         
@@ -747,6 +997,9 @@ class LogsViewer {
     
     clearLogs() {
         this.logEntries = [];
+        this.filteredEntries = [];
+        this.pendingEntries = [];
+        
         if (this.logsContent) {
             this.logsContent.innerHTML = `
                 <div style="color: #718096; text-align: center; padding: 2rem;">
@@ -754,6 +1007,25 @@ class LogsViewer {
                 </div>
             `;
         }
+        
+        // Reset filters
+        if (this.logLevelFilter) {
+            this.logLevelFilter.value = 'all';
+            this.currentFilter = 'all';
+        }
+        
+        if (this.logSearchInput) {
+            this.logSearchInput.value = '';
+            this.searchTerm = '';
+        }
+        
+        // Add a log entry indicating logs were cleared
+        this.addLogEntry({
+            level: 'info',
+            message: 'Logs cleared by user',
+            timestamp: new Date().toISOString(),
+            source: 'web-control'
+        });
     }
     
     setupAutoScroll() {
@@ -763,12 +1035,18 @@ class LogsViewer {
             this.logsContent.addEventListener('scroll', () => {
                 const { scrollTop, scrollHeight, clientHeight } = this.logsContent;
                 this.shouldAutoScroll = scrollTop + clientHeight >= scrollHeight - 10;
+                
+                // Update pause button state based on scroll position
+                if (this.shouldAutoScroll && this.isPaused) {
+                    // User scrolled to bottom while paused, auto-resume
+                    this.togglePause();
+                }
             });
         }
     }
     
     scrollToBottom() {
-        if (this.shouldAutoScroll && this.logsContent) {
+        if (this.shouldAutoScroll && this.logsContent && !this.isPaused) {
             this.logsContent.scrollTop = this.logsContent.scrollHeight;
         }
     }
@@ -777,6 +1055,45 @@ class LogsViewer {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    escapeRegex(text) {
+        return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    
+    // Method to get current log statistics
+    getLogStats() {
+        const stats = {
+            total: this.logEntries.length,
+            filtered: this.filteredEntries.length,
+            pending: this.pendingEntries.length,
+            levels: {}
+        };
+        
+        this.logEntries.forEach(entry => {
+            const level = entry.level || 'info';
+            stats.levels[level] = (stats.levels[level] || 0) + 1;
+        });
+        
+        return stats;
+    }
+    
+    // Method to export logs
+    exportLogs(format = 'json') {
+        const logsToExport = this.filteredEntries.length > 0 ? this.filteredEntries : this.logEntries;
+        
+        if (format === 'json') {
+            return JSON.stringify(logsToExport, null, 2);
+        } else if (format === 'text') {
+            return logsToExport.map(entry => {
+                const timestamp = new Date(entry.timestamp).toLocaleString();
+                const level = (entry.level || 'info').toUpperCase();
+                const source = entry.source ? `[${entry.source}]` : '';
+                return `[${timestamp}] [${level}] ${source} ${entry.message}`;
+            }).join('\n');
+        }
+        
+        return logsToExport;
     }
 }
 

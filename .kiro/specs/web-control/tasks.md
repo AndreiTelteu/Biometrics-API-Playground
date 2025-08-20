@@ -47,7 +47,7 @@
   - Build WebSocket client connection and message handling
   - _Requirements: 2.3, 2.4, 3.1, 7.1, 7.2_
 
-- [ ] 7. Build real-time logs viewer component
+- [x] 7. Build real-time logs viewer component
 
   - Create LogsViewer component with real-time log display
   - Implement automatic log updates via WebSocket messages
