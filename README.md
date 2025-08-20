@@ -63,6 +63,13 @@ This app is open source. Clone the repo to inspect the code, run tests, or adapt
 
 ## Changelog
 
+### 1.1.0 — Redesign / Dark theme
+
+- Redesign the entire interface
+- Add dark theme support with auto-detection
+- Collapse api endpoint configurations
+- Small animations
+
 ### 1.0.0 — Initial release
 
 - First public demo of biometric enrollment and validation flows.
