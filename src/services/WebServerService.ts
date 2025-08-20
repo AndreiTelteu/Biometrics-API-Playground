@@ -4,6 +4,8 @@ import { ServerInfo, AuthCredentials, ServerStatus } from '../types';
 import { AuthenticationMiddleware } from './AuthenticationMiddleware';
 import { webControlBridge, WebRequest, WebResponse } from './WebControlBridge';
 import { webSocketManager } from './WebSocketManager';
+import { webControlStateManager } from './WebControlStateManager';
+import { configurationPersistence } from './ConfigurationPersistence';
 import { errorHandler, ServerErrorDetails } from '../utils/ErrorHandler';
 import { networkResilience } from '../utils/NetworkResilience';
 
@@ -67,7 +69,7 @@ export class WebServerService {
     }
 
     try {
-      const port = await this.findAvailablePortWithRetry(preferredPort);
+      let port = await this.findAvailablePortWithRetry(preferredPort);
       const credentials = this.generateAuthCredentials();
 
       // Configure authentication middleware
@@ -81,8 +83,8 @@ export class WebServerService {
       // Set up server error handlers
       this.setupServerErrorHandlers();
 
-      // Start listening with timeout
-      await this.startServerWithTimeout(port);
+      // Try to start server with automatic port fallback
+      port = await this.startServerWithPortFallback(port);
 
       // Update server status
       this.serverStatus = {
@@ -101,6 +103,9 @@ export class WebServerService {
 
       // Initialize WebSocket manager
       webSocketManager.initialize();
+      
+      // Update state manager with server status
+      webControlStateManager.updateServerStatus(this.serverStatus);
 
       // Mark network as connected
       networkResilience.markConnected();
@@ -114,12 +119,20 @@ export class WebServerService {
         isRunning: true,
       };
     } catch (error) {
-      const serverError = errorHandler.handleServerError(error, 'Start server');
+      let errorMessage = 'Unknown server error';
+      
+      try {
+        const serverError = errorHandler.handleServerError(error, 'Start server');
+        errorMessage = serverError?.userMessage || serverError?.message || String(error);
+      } catch (handlerError) {
+        // If error handler fails, use the original error
+        errorMessage = error instanceof Error ? error.message : String(error);
+      }
       
       // Clean up any partial state
       await this.cleanupFailedStart();
       
-      throw new Error(serverError.userMessage || serverError.message);
+      throw new Error(errorMessage);
     }
   }
 
@@ -145,7 +158,7 @@ export class WebServerService {
       // Mark network as disconnected
       networkResilience.markDisconnected();
 
-      // Close server with timeout
+      // Close server with timeout and safe cleanup
       await this.stopServerWithTimeout();
 
       // Reset server status
@@ -161,6 +174,9 @@ export class WebServerService {
       this.authCredentials = null;
       this.authMiddleware.clearCredentials();
       this.server = null;
+      
+      // Update state manager with server status
+      webControlStateManager.updateServerStatus(this.serverStatus);
 
       console.log('Web server stopped successfully');
     } catch (error) {
@@ -202,54 +218,80 @@ export class WebServerService {
   }
 
   /**
-   * Finds an available port within the specified range
+   * Finds an available port within the specified range (simplified to avoid socket issues)
    */
   private async findAvailablePort(preferredPort?: number): Promise<number> {
-    if (preferredPort) {
-      if (await this.isPortAvailable(preferredPort)) {
-        return preferredPort;
-      }
-    }
-
-    // Try ports in the default range
-    for (
-      let port = this.DEFAULT_PORT_RANGE.min;
-      port <= this.DEFAULT_PORT_RANGE.max;
-      port++
-    ) {
-      if (await this.isPortAvailable(port)) {
-        return port;
-      }
-    }
-
-    // Try random ports if default range is exhausted
-    for (let attempt = 0; attempt < this.MAX_PORT_ATTEMPTS; attempt++) {
-      const randomPort = Math.floor(Math.random() * (65535 - 1024) + 1024);
-      if (await this.isPortAvailable(randomPort)) {
-        return randomPort;
-      }
-    }
-
-    throw new Error('No available ports found');
+    // Skip port checking entirely to avoid React Native TCP socket issues
+    // Let the server startup handle port conflicts with automatic fallback
+    const targetPort = preferredPort || 8080;
+    console.log(`Using target port: ${targetPort} (will fallback automatically if needed)`);
+    return targetPort;
   }
 
   /**
-   * Checks if a port is available
+   * Checks if a port is available (simplified version)
    */
   private async isPortAvailable(port: number): Promise<boolean> {
     return new Promise(resolve => {
+      const timeout = 500; // Very short timeout - 500ms
+      let resolved = false;
+      let testServer: any = null;
+      let timeoutId: any = null;
+      let isServerListening = false;
+      
+      const resolveOnce = (result: boolean) => {
+        if (!resolved) {
+          resolved = true;
+          
+          // Clear timeout
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          
+          // Clean up test server safely
+          if (testServer) {
+            try {
+              // Only close if the server is actually listening
+              if (isServerListening) {
+                testServer.close();
+              }
+            } catch (closeError) {
+              // Ignore close errors - socket might already be closed
+            }
+            testServer = null;
+          }
+          
+          resolve(result);
+        }
+      };
+
+      // Set aggressive timeout to prevent hanging
+      timeoutId = setTimeout(() => {
+        resolveOnce(false);
+      }, timeout);
+
       try {
-        const testServer = TcpSocket.createServer();
+        testServer = TcpSocket.createServer();
+        
+        // Handle server errors
+        testServer.on('error', (error: any) => {
+          isServerListening = false;
+          resolveOnce(false);
+        });
+
+        // Handle successful listening
         testServer.listen({ port, host: '0.0.0.0' }, (error?: any) => {
-          testServer.close();
           if (error) {
-            resolve(false);
+            isServerListening = false;
+            resolveOnce(false);
           } else {
-            resolve(true);
+            isServerListening = true;
+            resolveOnce(true);
           }
         });
       } catch (error) {
-        resolve(false);
+        resolveOnce(false);
       }
     });
   }
@@ -706,13 +748,21 @@ window.ResponseViewer = ResponseViewer;
     try {
       const requestId = this.generateRequestId();
 
-      // Get current state from WebControlBridge
-      const state = webControlBridge.getAppState();
+      // Get current state from WebControlBridge and StateManager
+      const bridgeState = webControlBridge.getAppState();
+      const configurationState = webControlStateManager.getConfigurationForWeb();
+
+      // Combine states
+      const combinedState = {
+        ...bridgeState,
+        ...configurationState,
+        serverStatus: this.serverStatus,
+      };
 
       // Create response
       const response: WebResponse = {
         success: true,
-        data: state,
+        data: combinedState,
         requestId,
         timestamp: new Date().toISOString(),
       };
@@ -737,26 +787,41 @@ window.ResponseViewer = ResponseViewer;
       const requestData = this.parseJsonBody(request.body);
       const requestId = this.generateRequestId();
 
-      if (!requestData.type || !requestData.config) {
-        throw new Error('Missing required fields: type and config');
+      // Handle different types of configuration updates
+      if (requestData.type && requestData.config) {
+        // Single endpoint configuration update
+        if (!['enroll', 'validate'].includes(requestData.type)) {
+          throw new Error('Invalid config type. Must be "enroll" or "validate"');
+        }
+
+        // Update configuration through WebControlBridge (which will persist it)
+        await webControlBridge.updateConfiguration(requestData.type, requestData.config);
+
+        // Create response
+        const response: WebResponse = {
+          success: true,
+          data: { message: `${requestData.type} configuration updated successfully` },
+          requestId,
+          timestamp: new Date().toISOString(),
+        };
+
+        this.sendJsonResponse(socket, 200, response);
+      } else if (requestData.configurations) {
+        // Bulk configuration update from web interface
+        await webControlStateManager.syncConfigurationFromWeb(requestData.configurations);
+
+        // Create response
+        const response: WebResponse = {
+          success: true,
+          data: { message: 'Configurations synchronized successfully' },
+          requestId,
+          timestamp: new Date().toISOString(),
+        };
+
+        this.sendJsonResponse(socket, 200, response);
+      } else {
+        throw new Error('Missing required fields: type and config, or configurations');
       }
-
-      if (!['enroll', 'validate'].includes(requestData.type)) {
-        throw new Error('Invalid config type. Must be "enroll" or "validate"');
-      }
-
-      // Update configuration through WebControlBridge
-      await webControlBridge.updateConfiguration(requestData.type, requestData.config);
-
-      // Create response
-      const response: WebResponse = {
-        success: true,
-        data: { message: `${requestData.type} configuration updated successfully` },
-        requestId,
-        timestamp: new Date().toISOString(),
-      };
-
-      this.sendJsonResponse(socket, 200, response);
     } catch (error) {
       const errorResponse: WebResponse = {
         success: false,
@@ -908,76 +973,144 @@ window.ResponseViewer = ResponseViewer;
   }
 
   /**
-   * Find available port with retry logic
+   * Find available port with simplified logic (no socket operations)
    */
   private async findAvailablePortWithRetry(preferredPort?: number): Promise<number> {
-    const maxRetries = 3;
-    let lastError: any;
+    console.log(`Finding available port, preferred: ${preferredPort || 'none'}`);
 
-    for (let retry = 0; retry < maxRetries; retry++) {
+    // Skip all port checking to avoid React Native TCP socket ID issues
+    // The startServerWithPortFallback method will handle port conflicts
+    const targetPort = preferredPort || 8080;
+    console.log(`Using target port: ${targetPort} (automatic fallback enabled)`);
+    return targetPort;
+  }
+
+  /**
+   * Start server with automatic port fallback
+   */
+  private async startServerWithPortFallback(initialPort: number): Promise<number> {
+    const portsToTry = [initialPort, 8080, 8081, 8082, 8083, 8084, 8085];
+    const uniquePorts = [...new Set(portsToTry)]; // Remove duplicates
+    
+    for (const port of uniquePorts) {
       try {
-        return await this.findAvailablePort(preferredPort);
+        console.log(`Attempting to start server on port ${port}...`);
+        await this.startServerWithTimeout(port);
+        console.log(`Server successfully started on port ${port}`);
+        return port;
       } catch (error) {
-        lastError = error;
+        console.log(`Failed to start server on port ${port}:`, error);
         
-        if (retry < maxRetries - 1) {
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000 * (retry + 1)));
+        // If this isn't the last port, continue to next
+        if (port !== uniquePorts[uniquePorts.length - 1]) {
+          console.log(`Trying next port...`);
+          
+          // Clean up the current server instance safely
+          await this.safeCleanupServer();
+          
+          // Recreate server for next attempt
+          this.server = TcpSocket.createServer((socket: any) => {
+            this.handleConnectionWithErrorHandling(socket);
+          });
+          this.setupServerErrorHandlers();
+          
+          continue;
         }
+        
+        // If this was the last port, throw the error
+        throw new Error(`Failed to start server on any available port. Last error: ${error}`);
       }
     }
-
-    throw lastError;
+    
+    throw new Error('No ports available for server startup');
   }
 
   /**
    * Start server with timeout
    */
   private async startServerWithTimeout(port: number): Promise<void> {
-    const timeout = 10000; // 10 seconds
+    const timeout = 5000; // 5 seconds (reduced timeout)
 
     return new Promise<void>((resolve, reject) => {
+      let resolved = false;
+      
+      const resolveOnce = (error?: any) => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeoutId);
+          
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        }
+      };
+
       const timeoutId = setTimeout(() => {
-        reject(new Error('Server start timeout'));
+        console.log(`Server start timeout on port ${port}`);
+        resolveOnce(new Error(`Server start timeout on port ${port}`));
       }, timeout);
 
-      this.server.listen({ port, host: '0.0.0.0' }, (error: any) => {
-        clearTimeout(timeoutId);
-        
-        if (error) {
-          reject(error);
-        } else {
-          resolve();
+      try {
+        // Remove any existing error listeners to avoid duplicates
+        if (this.server && typeof this.server.removeAllListeners === 'function') {
+          this.server.removeAllListeners('error');
         }
-      });
+        
+        // Set up error handler before listening
+        this.server.on('error', (error: any) => {
+          console.log(`Server error on port ${port}:`, error.message);
+          resolveOnce(error);
+        });
+
+        this.server.listen({ port, host: '0.0.0.0' }, (error: any) => {
+          if (error) {
+            console.log(`Server listen error on port ${port}:`, error.message);
+            resolveOnce(error);
+          } else {
+            console.log(`Server successfully listening on port ${port}`);
+            resolveOnce();
+          }
+        });
+      } catch (error) {
+        console.log(`Server setup error on port ${port}:`, error);
+        resolveOnce(error);
+      }
     });
   }
 
   /**
-   * Stop server with timeout
+   * Stop server with timeout and safe cleanup
    */
   private async stopServerWithTimeout(): Promise<void> {
     if (!this.server) {
       return;
     }
 
-    const timeout = 5000; // 5 seconds
+    const timeout = 3000; // 3 seconds (reduced)
 
-    return new Promise<void>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        console.warn('Server stop timeout, forcing cleanup');
-        this.forceCleanup();
+    return new Promise<void>(async (resolve, reject) => {
+      const timeoutId = setTimeout(async () => {
+        console.warn('Server stop timeout, forcing safe cleanup');
+        try {
+          await this.safeCleanupServer();
+        } catch (error) {
+          console.error('Error during forced cleanup:', error);
+        }
         resolve();
       }, timeout);
 
       try {
-        this.server.close(() => {
-          clearTimeout(timeoutId);
-          resolve();
-        });
+        // Use safe cleanup instead of direct close
+        await this.safeCleanupServer();
+        clearTimeout(timeoutId);
+        resolve();
       } catch (error) {
         clearTimeout(timeoutId);
-        reject(error);
+        console.error('Error during server stop:', error);
+        // Still resolve to avoid hanging
+        resolve();
       }
     });
   }
@@ -1189,14 +1322,37 @@ window.ResponseViewer = ResponseViewer;
   }
 
   /**
+   * Safely cleanup server to avoid socket ID issues
+   */
+  private async safeCleanupServer(): Promise<void> {
+    try {
+      if (this.server) {
+        // Remove all listeners first to prevent events during cleanup
+        if (typeof this.server.removeAllListeners === 'function') {
+          this.server.removeAllListeners();
+        }
+        
+        // Close server with a small delay to allow cleanup
+        this.server.close();
+        
+        // Wait a bit for cleanup to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        this.server = null;
+      }
+    } catch (error) {
+      console.error('Error during safe server cleanup:', error);
+      // Force null the server reference even if cleanup failed
+      this.server = null;
+    }
+  }
+
+  /**
    * Clean up after failed server start
    */
   private async cleanupFailedStart(): void {
     try {
-      if (this.server) {
-        this.server.close();
-        this.server = null;
-      }
+      await this.safeCleanupServer();
       
       this.authCredentials = null;
       this.authMiddleware.clearCredentials();

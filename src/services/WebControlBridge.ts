@@ -6,6 +6,8 @@
 
 import { biometricService } from './BiometricService';
 import { biometricAPIService } from './BiometricAPIService';
+import { webControlStateManager } from './WebControlStateManager';
+import { configurationPersistence } from './ConfigurationPersistence';
 import {
   EndpointConfig,
   OperationResult,
@@ -85,6 +87,16 @@ export class WebControlBridge {
    */
   async initialize(): Promise<void> {
     try {
+      // Initialize state manager and configuration persistence
+      await webControlStateManager.initialize();
+      
+      // Load persisted endpoint configurations
+      const persistedConfigs = await configurationPersistence.getEndpointConfigs();
+      this.updateState({
+        enrollEndpoint: persistedConfigs.enroll,
+        validateEndpoint: persistedConfigs.validate,
+      });
+
       // Setup error handling
       this.setupErrorHandling();
 
@@ -109,7 +121,7 @@ export class WebControlBridge {
         timestamp: new Date(),
         operation: 'status',
         status: 'success',
-        message: 'WebControlBridge initialized successfully',
+        message: 'WebControlBridge initialized successfully with persistent configuration',
       });
     } catch (error) {
       const appError = errorHandler.handleApplicationError(error, 'WebControlBridge initialization');
@@ -139,6 +151,9 @@ export class WebControlBridge {
 
       // Use provided config or current state config
       const enrollConfig = config || this.state.enrollEndpoint;
+      
+      // Start operation tracking in state manager
+      const stateOperationId = webControlStateManager.startOperation('enroll', undefined, enrollConfig.url);
 
       // Validate biometric availability
       if (!this.state.biometricStatus.available) {
@@ -245,6 +260,9 @@ export class WebControlBridge {
 
       this.updateState({ operationStatus: result, isLoading: false });
       this.notifyOperationComplete('enroll', operationId, result);
+      
+      // Complete operation tracking in state manager
+      await webControlStateManager.completeOperation(stateOperationId, true, result);
 
       return result;
     } catch (error) {
@@ -267,6 +285,9 @@ export class WebControlBridge {
 
       this.updateState({ operationStatus: errorResult, isLoading: false });
       this.notifyOperationComplete('enroll', operationId, errorResult);
+      
+      // Complete operation tracking in state manager with error
+      await webControlStateManager.completeOperation(stateOperationId, false, errorResult);
 
       return errorResult;
     } finally {
@@ -543,12 +564,15 @@ export class WebControlBridge {
 
     this.updateState(updates);
 
+    // Persist configuration changes
+    await webControlStateManager.updateEndpointConfiguration(type, config, 'mobile');
+
     this.addLog({
       id: this.generateId(),
       timestamp: new Date(),
       operation: 'status',
       status: 'info',
-      message: `${type} endpoint configuration updated`,
+      message: `${type} endpoint configuration updated and persisted`,
     });
 
     // Notify listeners of configuration change

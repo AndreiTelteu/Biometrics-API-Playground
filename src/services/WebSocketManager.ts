@@ -4,6 +4,7 @@ import {
   WebSocketManagerState,
   WebSocketMessageType,
 } from '../types';
+import { webControlStateManager } from './WebControlStateManager';
 import { errorHandler } from '../utils/ErrorHandler';
 import { networkResilience } from '../utils/NetworkResilience';
 
@@ -152,6 +153,12 @@ export class WebSocketManager {
 
       // Reset reconnection attempts for this connection
       this.reconnectionAttempts.delete(connectionId);
+      
+      // Add connection to state manager
+      webControlStateManager.addConnection(connectionId, {
+        connectedAt: connection.connectedAt,
+        lastActivity: connection.lastActivity,
+      });
 
       // Send connection established message
       this.sendToClientSafely(connectionId, {
@@ -406,6 +413,9 @@ export class WebSocketManager {
       connection.isAlive = false;
       this.state.connections.delete(connectionId);
       this.state.stats.activeConnections--;
+      
+      // Remove connection from state manager
+      webControlStateManager.removeConnection(connectionId);
     }
   }
 
@@ -894,6 +904,9 @@ export class WebSocketManager {
     try {
       connection.lastActivity = new Date();
       this.state.stats.messagesReceived++;
+      
+      // Update connection activity in state manager
+      webControlStateManager.updateConnectionActivity(connection.id);
 
       // Handle ping messages
       if (message.type === 'ping') {

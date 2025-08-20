@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme';
 import { webServerService } from '../services';
+import { webControlStateManager } from '../services/WebControlStateManager';
+import { configurationPersistence } from '../services/ConfigurationPersistence';
 import { errorHandler, networkResilience } from '../utils';
 import type { ServerStatus } from '../types';
 
@@ -49,10 +51,46 @@ export const WebControl: React.FC<WebControlProps> = ({
 
   // Initialize server status and error handling on mount
   useEffect(() => {
-    updateServerStatus();
-    setupErrorHandling();
-    setupNetworkMonitoring();
-  }, [updateServerStatus]);
+    const initializeWebControl = async () => {
+      try {
+        // Initialize state management
+        await webControlStateManager.initialize();
+        
+        // Setup state change listener
+        const removeStateListener = webControlStateManager.addStateChangeListener({
+          onStateChanged: (state) => {
+            setServerStatus(state.server.status);
+            onServerStatusChange?.(state.server.status);
+          },
+          onOperationStatusChanged: (operation) => {
+            // Handle operation status changes if needed
+          },
+          onConfigurationChanged: (change) => {
+            // Handle configuration changes if needed
+          },
+          onConnectionChanged: (connections) => {
+            // Update active connections count
+            const status = webServerService.getServerStatus();
+            status.activeConnections = connections.size;
+            setServerStatus(status);
+          },
+        });
+
+        updateServerStatus();
+        setupErrorHandling();
+        setupNetworkMonitoring();
+
+        return () => {
+          removeStateListener();
+        };
+      } catch (error) {
+        console.error('Failed to initialize WebControl:', error);
+        setErrorMessage('Failed to initialize web control system');
+      }
+    };
+
+    initializeWebControl();
+  }, [updateServerStatus, onServerStatusChange]);
 
   // Setup error handling
   const setupErrorHandling = useCallback(() => {
@@ -98,12 +136,22 @@ export const WebControl: React.FC<WebControlProps> = ({
     setErrorMessage(null);
     
     try {
-      const serverInfo = await webServerService.startServer();
+      // Get server settings from persistence
+      const serverSettings = await configurationPersistence.getServerSettings();
+      
+      const serverInfo = await webServerService.startServer(serverSettings.preferredPort);
+      
+      // Update server settings with actual port used
+      await webControlStateManager.updateServerSettings({
+        ...serverSettings,
+        preferredPort: serverInfo.port,
+      });
+      
       updateServerStatus();
       
       Alert.alert(
         'Web Server Started',
-        `Server is now running and accessible at:\n${serverInfo.url}\n\nUsername: admin\nPassword: ${serverInfo.password}`,
+        `Server is now running and accessible at:\n${serverInfo.url}\n\nUsername: admin\nPassword: ${serverInfo.password}\n\nConfiguration is automatically synchronized between web and mobile interfaces.`,
         [{ text: 'OK' }]
       );
     } catch (error) {
