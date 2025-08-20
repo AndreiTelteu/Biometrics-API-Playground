@@ -24,4 +24,8 @@ export type {
   ServerStatus,
   WebControlState,
   AuthenticationResult,
+  WebSocketMessage,
+  WebSocketMessageType,
+  WebSocketConnection,
+  WebSocketManagerState,
 } from './webserver';

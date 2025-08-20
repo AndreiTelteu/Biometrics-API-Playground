@@ -44,3 +44,42 @@ export interface AuthenticationResult {
   headers: { [key: string]: string };
   body: string;
 }
+
+// WebSocket message types and interfaces
+export type WebSocketMessageType = 
+  | 'operation-start'
+  | 'operation-complete'
+  | 'log-update'
+  | 'state-sync'
+  | 'config-update'
+  | 'connection-established'
+  | 'ping'
+  | 'pong';
+
+export interface WebSocketMessage {
+  type: WebSocketMessageType;
+  timestamp: string;
+  data: any;
+  operationId?: string;
+  clientId?: string;
+}
+
+export interface WebSocketConnection {
+  id: string;
+  socket: any;
+  isAlive: boolean;
+  connectedAt: Date;
+  lastActivity: Date;
+}
+
+export interface WebSocketManagerState {
+  isActive: boolean;
+  connections: Map<string, WebSocketConnection>;
+  messageQueue: WebSocketMessage[];
+  stats: {
+    totalConnections: number;
+    activeConnections: number;
+    messagesSent: number;
+    messagesReceived: number;
+  };
+}
